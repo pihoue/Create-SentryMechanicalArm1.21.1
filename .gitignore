@@ -1,0 +1,16 @@
+# NeoForge
+run/
+.gradle/
+build/
+idea/
+*.iml
+
+# Generated
+src/generated/resources/
+
+# Temp
+*.tmp
+
+# Dependencies (reference only, not part of mod)
+依赖相关项目源码/
+旧版项目/

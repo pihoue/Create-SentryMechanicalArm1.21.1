@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "euphy.upo.sentrymechanicalarm.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "sentrymechanicalarm.refmap.json",
+  "mixins": [
+    "BeltDeployerCallbacksMixin",
+    "DeployerBlockEntityMixin",
+    "DeployerHandlerMixin",
+    "InteractKeyTextOverlayMixin"
+  ],
+  "client": [
+    "InteractKeyMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

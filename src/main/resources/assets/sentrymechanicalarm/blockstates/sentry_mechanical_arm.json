@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "sentrymechanicalarm:block/sentry_mechanical_arm" }
+  }
+}

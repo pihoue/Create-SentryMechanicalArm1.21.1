@@ -1,0 +1,41 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "MIT"
+
+[[mods]]
+modId = "sentrymechanicalarm"
+version = "0.4.1"
+displayName = "Sentry Mechanical Arm"
+authors = "Euphy"
+description = '''A Create mod addon that adds sentry mechanical arms for automated defense.'''
+
+[[mixins]]
+config = "sentrymechanicalarm.mixins.json"
+
+[[dependencies.sentrymechanicalarm]]
+    modId = "neoforge"
+    type = "required"
+    versionRange = "[21,)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.sentrymechanicalarm]]
+    modId = "minecraft"
+    type = "required"
+    versionRange = "[1.21.1]"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.sentrymechanicalarm]]
+    modId = "create"
+    type = "required"
+    versionRange = "[6.0.10,)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.sentrymechanicalarm]]
+    modId = "tacz"
+    type = "required"
+    versionRange = "[1.1.8,)"
+    ordering = "NONE"
+    side = "BOTH"

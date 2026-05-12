@@ -1,0 +1,118 @@
+{
+  "type": "create:sequenced_assembly",
+  "ingredient": {
+    "type": "forge:partial_nbt",
+    "item": "sentrymechanicalarm:unfinished_ammo",
+    "nbt": {
+      "AmmoId": "tacz:46x30"
+    }
+  },
+  "loops": 1,
+  "results": [
+    {
+      "count": 28,
+      "item": "tacz:ammo",
+      "nbt": {
+        "AmmoId": "tacz:46x30"
+      }
+    }
+  ],
+  "sequence": [
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        },
+        {
+          "item": "create:copper_sheet"
+        }
+      ],
+      "results": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        },
+        {
+          "item": "create:copper_sheet"
+        }
+      ],
+      "results": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        },
+        {
+          "item": "create:copper_sheet"
+        }
+      ],
+      "results": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        },
+        {
+          "item": "create:copper_sheet"
+        }
+      ],
+      "results": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        },
+        {
+          "item": "minecraft:gunpowder"
+        }
+      ],
+      "results": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        }
+      ]
+    },
+    {
+      "type": "create:pressing",
+      "ingredients": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        }
+      ],
+      "results": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        }
+      ]
+    }
+  ],
+  "transitionalItem": {
+    "item": "sentrymechanicalarm:unfinished_ammo"
+  }
+}

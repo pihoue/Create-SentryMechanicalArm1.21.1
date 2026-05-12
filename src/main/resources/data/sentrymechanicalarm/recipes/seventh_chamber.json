@@ -1,0 +1,34 @@
+{
+  "type": "tacz:gun_smith_table_crafting",
+  "materials": [
+    {
+      "item": {
+        "item": "minecraft:stick"
+      },
+      "count": 8
+    },
+    {
+      "item": {
+        "item": "minecraft:pink_wool"
+      },
+      "count": 1
+    }
+  ],
+  "result": {
+    "type": "custom",
+    "group": "tacz:misc",
+    "item": {
+      "item": "minecraft:painting",
+      "nbt": {
+        "display": {
+          "Name": "{\"translate\":\"item.sentrymechanicalarm.seventh_chamber.desc_1\"}"
+        },
+        "EntityTag": {
+          "variant": "sentrymechanicalarm:seventh_chamber"
+        }
+      },
+      "count": 1
+    }
+  }
+
+}

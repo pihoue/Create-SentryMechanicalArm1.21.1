@@ -1,0 +1,104 @@
+{
+  "type": "create:sequenced_assembly",
+  "ingredient": {
+    "type": "forge:partial_nbt",
+    "item": "sentrymechanicalarm:unfinished_ammo",
+    "nbt": {
+      "AmmoId": "tacz:rpg_rocket"
+    }
+  },
+  "loops": 1,
+  "results": [
+    {
+      "count": 2,
+      "item": "tacz:ammo",
+      "nbt": {
+        "AmmoId": "tacz:rpg_rocket"
+      }
+    }
+  ],
+  "sequence": [
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        },
+        {
+          "item": "create:iron_sheet"
+        }
+      ],
+      "results": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        },
+        {
+          "item": "minecraft:copper_block"
+        }
+      ],
+      "results": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        },
+        {
+          "item": "minecraft:tnt"
+        }
+      ],
+      "results": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        }
+      ]
+    },
+    {
+      "type": "create:filling",
+      "ingredients": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        },
+        {
+          "amount": 250,
+          "fluid": "minecraft:lava",
+          "nbt": {}
+        }
+      ],
+      "results": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        }
+      ]
+    },
+    {
+      "type": "create:pressing",
+      "ingredients": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        }
+      ],
+      "results": [
+        {
+          "item": "sentrymechanicalarm:unfinished_ammo"
+        }
+      ]
+    }
+  ],
+  "transitionalItem": {
+    "item": "sentrymechanicalarm:unfinished_ammo"
+  }
+}

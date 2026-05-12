@@ -1,0 +1,35 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_fire_control_clipboard": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "sentrymechanicalarm:fire_control_clipboard"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "create:clipboard"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_fire_control_clipboard",
+      "has_the_recipe"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "create:clipboard"
+    ]
+  },
+  "sends_telemetry_event": false
+}

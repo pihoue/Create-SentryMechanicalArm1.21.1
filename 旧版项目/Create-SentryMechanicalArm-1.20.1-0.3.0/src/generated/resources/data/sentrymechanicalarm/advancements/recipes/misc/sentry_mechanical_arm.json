@@ -1,0 +1,35 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_mechanical_arm": {
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "create:mechanical_arm"
+            ]
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "sentrymechanicalarm:sentry_mechanical_arm"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_mechanical_arm",
+      "has_the_recipe"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "sentrymechanicalarm:sentry_mechanical_arm"
+    ]
+  },
+  "sends_telemetry_event": false
+}

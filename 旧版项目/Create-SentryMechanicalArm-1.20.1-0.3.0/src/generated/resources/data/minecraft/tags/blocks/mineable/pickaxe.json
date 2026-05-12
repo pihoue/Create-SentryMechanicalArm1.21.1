@@ -1,0 +1,6 @@
+{
+  "values": [
+    "sentrymechanicalarm:sentry_mechanical_arm",
+    "sentrymechanicalarm:blaze_fire_control"
+  ]
+}

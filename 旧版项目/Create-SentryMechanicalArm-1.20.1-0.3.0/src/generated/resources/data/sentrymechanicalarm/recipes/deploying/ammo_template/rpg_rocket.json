@@ -1,0 +1,23 @@
+{
+  "type": "create:deploying",
+  "ingredients": [
+    {
+      "item": "create:copper_sheet"
+    },
+    {
+      "type": "forge:partial_nbt",
+      "item": "tacz:ammo",
+      "nbt": {
+        "AmmoId": "tacz:rpg_rocket"
+      }
+    }
+  ],
+  "results": [
+    {
+      "item": "sentrymechanicalarm:unfinished_ammo",
+      "nbt": {
+        "AmmoId": "tacz:rpg_rocket"
+      }
+    }
+  ]
+}

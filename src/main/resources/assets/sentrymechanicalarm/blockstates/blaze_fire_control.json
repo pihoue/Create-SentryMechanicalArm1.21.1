@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "sentrymechanicalarm:block/blaze_fire_control" }
+  }
+}
