@@ -75,7 +75,7 @@ public class SentryRegistry {
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> SENTRY_TAB = CREATIVE_TABS.register("main",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup." + MODID))
-                    .icon(() -> new net.minecraft.world.item.ItemStack(BLAZE_FIRE_CONTROL.get()))
+                    .icon(() -> new net.minecraft.world.item.ItemStack(BLAZE_FIRE_CONTROL.get(), 1))
                     .displayItems((parameters, output) -> {
                         output.accept(SENTRY_ARM_BLOCK.get());
                         output.accept(BLAZE_FIRE_CONTROL.get());
