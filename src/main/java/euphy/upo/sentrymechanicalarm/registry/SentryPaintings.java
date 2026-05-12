@@ -14,8 +14,8 @@ public class SentryPaintings {
             DeferredRegister.create(Registries.PAINTING_VARIANT, "sentrymechanicalarm");
 
 
-    public static final DeferredHolder<PaintingVariant, PaintingVariant> SENTRY_OPS =
-            PAINTING_VARIANTS.register("sentry_ops", () -> new PaintingVariant(32, 32, ResourceLocation.fromNamespaceAndPath("sentrymechanicalarm", "painting/sentry_ops")));
+    public static final DeferredHolder<PaintingVariant, PaintingVariant> SEVENTH_CHAMBER =
+            PAINTING_VARIANTS.register("seventh_chamber", () -> new PaintingVariant(32, 32, ResourceLocation.fromNamespaceAndPath("sentrymechanicalarm", "painting/seventh_chamber")));
 
     public static void register(IEventBus eventBus) {
         PAINTING_VARIANTS.register(eventBus);
