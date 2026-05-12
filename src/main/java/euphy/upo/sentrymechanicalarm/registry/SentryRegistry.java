@@ -77,10 +77,10 @@ public class SentryRegistry {
                     .title(Component.translatable("itemGroup." + MODID))
                     .icon(() -> new net.minecraft.world.item.ItemStack(BLAZE_FIRE_CONTROL.get(), 1))
                     .displayItems((parameters, output) -> {
-                        output.accept(SENTRY_ARM_BLOCK.get());
-                        output.accept(BLAZE_FIRE_CONTROL.get());
-                        output.accept(FIRE_CONTROL_CLIPBOARD.get());
-                        output.accept(APPLE_PIE.get());
+                        output.accept(new net.minecraft.world.item.ItemStack(SENTRY_ARM_BLOCK.get(), 1));
+                        output.accept(new net.minecraft.world.item.ItemStack(BLAZE_FIRE_CONTROL.get(), 1));
+                        output.accept(new net.minecraft.world.item.ItemStack(FIRE_CONTROL_CLIPBOARD.get(), 1));
+                        output.accept(new net.minecraft.world.item.ItemStack(APPLE_PIE.get(), 1));
                     })
                     .build());
 
