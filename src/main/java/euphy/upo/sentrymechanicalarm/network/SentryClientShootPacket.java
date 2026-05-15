@@ -31,19 +31,31 @@ public record SentryClientShootPacket(int contraptionId, BlockPos localPos, floa
     }
 
     public static void handle(SentryClientShootPacket msg, ServerPlayer player) {
+        euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[SMB] packet received: contraptionId={}, localPos={}, yaw={}, pitch={}, dist={}",
+            msg.contraptionId(), msg.localPos(), msg.yaw(), msg.pitch(), msg.distance());
         Entity entity = player.level().getEntity(msg.contraptionId());
         if (entity instanceof AbstractContraptionEntity ace) {
             Contraption contraption = ace.getContraption();
             if (contraption != null) {
+                boolean found = false;
                 for (var actor : contraption.getActors()) {
                     if (actor.getKey().pos().equals(msg.localPos())) {
+                        found = true;
                         SentryMovementBehaviour.handleClientShootPacket(
                                 actor.getValue(), ace, msg.yaw(), msg.pitch(), msg.distance()
                         );
                         break;
                     }
                 }
+                if (!found) {
+                    euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[SMB] packet: actor not found for localPos {}", msg.localPos());
+                }
+            } else {
+                euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[SMB] packet: contraption is null");
             }
+        } else {
+            euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[SMB] packet: entity not found for id {}, type={}",
+                msg.contraptionId(), entity != null ? entity.getClass().getSimpleName() : "null");
         }
     }
 }

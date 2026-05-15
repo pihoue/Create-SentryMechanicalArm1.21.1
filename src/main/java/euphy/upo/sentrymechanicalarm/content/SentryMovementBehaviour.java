@@ -226,8 +226,23 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
             boolean isDeployed = virtualBE.upperArmAngle.getValue() > 45f;
 
+            if (tick % 10 == 0) {
+                double armUpper = virtualBE.upperArmAngle.getValue();
+                SentryMechanicalArm.LOGGER.info("[SMB] aim: tYaw={}, tPitch={}, cYaw={}, cPitch={}, dev={}, deployed={}, upperArm={}",
+                    Math.round(targetYaw), Math.round(targetPitch),
+                    Math.round(currentLocalYaw), Math.round(currentLocalPitch),
+                    Math.round(totalDeviation * 100.0) / 100.0, isDeployed,
+                    Math.round(armUpper * 10.0) / 10.0);
+            }
 
-            if (totalDeviation < 6.0 && isDeployed && clientDelay <= 0) {
+            boolean readyToShoot = totalDeviation < 6.0 && isDeployed && clientDelay <= 0;
+
+            if (tick % 5 == 0 && result != null) {
+                SentryMechanicalArm.LOGGER.info("[SMB] shootCheck: dev<6={}, deployed={}, delay<={}={}, ready={}",
+                    totalDeviation < 6.0, isDeployed, clientDelay, clientDelay <= 0, readyToShoot);
+            }
+
+            if (readyToShoot) {
                 double dist = Math.sqrt(targetGlobal.distanceToSqr(accurateMuzzlePos));
 
                 double gYawRad = Mth.atan2(worldAimVec.z, worldAimVec.x) - (Math.PI / 2.0);
@@ -252,16 +267,27 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         if (delay > 0) {
             context.data.putFloat("ShootDelay", delay - 1);
         }
+        int refillTick = context.data.getInt("_RefillTick");
+        refillTick++;
+        context.data.putInt("_RefillTick", refillTick);
+        if (refillTick % 20 == 0 && context.temporaryData instanceof VirtualSentryArmBlockEntity virtualBE) {
+            if (!virtualBE.getHeldItem().isEmpty() && context.contraption != null && context.contraption.getStorage() != null) {
+                ResourceLocation ammoId = null;
+                if (virtualBE.getHeldItem().getItem() instanceof IGun iGun) {
+                    var idx = TimelessAPI.getCommonGunIndex(iGun.getGunId(virtualBE.getHeldItem()));
+                    if (idx.isPresent()) ammoId = idx.get().getGunData().getAmmoId();
+                }
+                if (ammoId != null) refillAmmoBoxesFromContraption(context, virtualBE, ammoId);
+            }
+        }
     }
 
     public static void handleClientShootPacket(MovementContext context, AbstractContraptionEntity ace, float yaw, float pitch, double distance) {
         if (context.temporaryData instanceof VirtualSentryArmBlockEntity virtualBE) {
             float serverDelay = context.data.getFloat("ShootDelay");
+            SentryMechanicalArm.LOGGER.info("[SMB] handleShoot: delay={}, hasGun={}, localPos={}, yaw={}, pitch={}",
+                serverDelay, !virtualBE.getHeldItem().isEmpty(), context.localPos, yaw, pitch);
             if (serverDelay > 0) return;
-
-            SentryMechanicalArm.LOGGER.debug("[SMB] handleShoot: entity={}, localPos={}, yaw={}, pitch={}, dist={}",
-                ace != null ? ace.getClass().getSimpleName() : "null",
-                context.localPos, yaw, pitch, distance);
 
             Vec3 localPosCenter = VecHelper.getCenterOf(context.localPos);
             boolean isCeiling = context.state.hasProperty(SentryArmBlock.CEILING) && context.state.getValue(SentryArmBlock.CEILING);
@@ -275,6 +301,11 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
             SentryMovementBehaviour behavior = new SentryMovementBehaviour();
             boolean fired = behavior.fireGunInContraption(context, virtualBE, gunStack, accurateMuzzlePos, yaw, pitch, distance);
+            int ammoCount = -1;
+            if (gunStack.getItem() instanceof IGun) {
+                try { ammoCount = ((IGun) gunStack.getItem()).getCurrentAmmoCount(gunStack); } catch (Exception ignored) {}
+            }
+            SentryMechanicalArm.LOGGER.info("[SMB] fireResult: fired={}, ammo={}, barrelPos={}", fired, ammoCount, accurateMuzzlePos);
 
             if (fired) {
                 float rpm = 600f;
@@ -311,6 +342,17 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         boolean hasExternal = false;
         if (requiredAmmoId != null) {
             hasExternal = consumeAmmoFromContraption(context.contraption, gunStack, true);
+            if (!hasExternal) {
+                for (ItemStack box : virtualBE.attachedAmmoBoxes) {
+                    if (!box.isEmpty() && box.getItem() instanceof com.tacz.guns.api.item.IAmmoBox iBox) {
+                        if (iBox.isAllTypeCreative(box) || (java.util.Objects.equals(iBox.getAmmoId(box), requiredAmmoId)
+                            && (iBox.isCreative(box) || iBox.getAmmoCount(box) > 0))) {
+                            hasExternal = true;
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         if (!hasInternal && !hasExternal) {
@@ -389,7 +431,16 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         if (result == ShootResult.SUCCESS) {
 
             if (hasExternal) {
-                consumeAmmoFromContraption(context.contraption, gunStack, false);
+                if (!consumeAmmoFromContraption(context.contraption, gunStack, false)) {
+                    for (ItemStack box : virtualBE.attachedAmmoBoxes) {
+                        if (!box.isEmpty() && box.getItem() instanceof com.tacz.guns.api.item.IAmmoBox iBox) {
+                            if (!iBox.isCreative(box) && iBox.getAmmoCount(box) > 0) {
+                                iBox.setAmmoCount(box, iBox.getAmmoCount(box) - 1);
+                                break;
+                            }
+                        }
+                    }
+                }
                 if (consumedInternal) {
                     iGun.setCurrentAmmoCount(gunStack, currentInternalAmmo);
                 }
@@ -398,6 +449,8 @@ public class SentryMovementBehaviour implements MovementBehaviour {
                     iGun.setCurrentAmmoCount(gunStack, currentInternalAmmo - 1);
                 }
             }
+
+            refillAmmoBoxesFromContraption(context, virtualBE, requiredAmmoId);
 
             virtualBE.setLastShootTime(System.currentTimeMillis());
 
@@ -421,6 +474,49 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         }
 
         return false;
+    }
+
+    private void refillAmmoBoxesFromContraption(MovementContext context, VirtualSentryArmBlockEntity virtualBE, ResourceLocation requiredAmmoId) {
+        if (requiredAmmoId == null || context.contraption == null || context.contraption.getStorage() == null) return;
+        net.neoforged.neoforge.items.IItemHandler inventory = context.contraption.getStorage().getAllItems();
+        if (inventory == null) return;
+
+        for (int slot = 0; slot < virtualBE.attachedAmmoBoxes.size(); slot++) {
+            ItemStack box = virtualBE.attachedAmmoBoxes.get(slot);
+            boolean needsReplace = false;
+            if (box.isEmpty()) {
+                needsReplace = true;
+            } else if (box.getItem() instanceof com.tacz.guns.api.item.IAmmoBox iBox) {
+                if (iBox.isCreative(box) || iBox.isAllTypeCreative(box)) continue;
+                ResourceLocation boxId = iBox.getAmmoId(box);
+                if (boxId == null || !boxId.equals(requiredAmmoId) || iBox.getAmmoCount(box) <= 0) {
+                    needsReplace = true;
+                }
+            }
+
+            if (needsReplace) {
+                for (int i = 0; i < inventory.getSlots(); i++) {
+                    ItemStack stack = inventory.getStackInSlot(i);
+                    if (stack.isEmpty() || !(stack.getItem() instanceof com.tacz.guns.api.item.IAmmoBox iBox)) continue;
+                    if (iBox.isCreative(stack) || iBox.isAllTypeCreative(stack)) {
+                        virtualBE.attachedAmmoBoxes.set(slot, stack.copy());
+                        break;
+                    }
+                    ResourceLocation stackId = iBox.getAmmoId(stack);
+                    if (requiredAmmoId.equals(stackId) && iBox.getAmmoCount(stack) > 0) {
+                        ItemStack fullBox = inventory.extractItem(i, 1, false);
+                        if (!fullBox.isEmpty()) {
+                            ItemStack oldBox = virtualBE.attachedAmmoBoxes.get(slot);
+                            virtualBE.attachedAmmoBoxes.set(slot, fullBox);
+                            if (!oldBox.isEmpty() && oldBox.getItem() instanceof com.tacz.guns.api.item.IAmmoBox) {
+                                inventory.insertItem(i, oldBox, false);
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     private void spawnDebugLine(Level level, Vec3 start, Vec3 end, Vector3f color) {
