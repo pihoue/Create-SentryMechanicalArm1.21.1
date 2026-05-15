@@ -1,11 +1,14 @@
 package euphy.upo.sentrymechanicalarm.content;
 
+import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
 import euphy.upo.sentrymechanicalarm.registry.SentryRegistry;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.items.IItemHandler;
 
+@EventBusSubscriber(modid = SentryMechanicalArm.MODID)
 public class CapabilityEvents {
 
     @SubscribeEvent

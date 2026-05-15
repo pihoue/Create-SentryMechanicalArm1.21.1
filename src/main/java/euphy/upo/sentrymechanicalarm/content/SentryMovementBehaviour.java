@@ -21,6 +21,7 @@ import euphy.upo.sentrymechanicalarm.network.NetworkHandler;
 import euphy.upo.sentrymechanicalarm.network.SentryClientShootPacket;
 import euphy.upo.sentrymechanicalarm.network.SentryContraptionShootPacket;
 import euphy.upo.sentrymechanicalarm.util.SentryFakePlayer;
+import euphy.upo.sentrymechanicalarm.content.SentryArmBlock;
 import net.createmod.catnip.animation.LerpedFloat;
 import net.createmod.catnip.math.VecHelper;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -58,7 +59,6 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     @Override
     public void startMoving(MovementContext context) {
         VirtualSentryArmBlockEntity virtualBE = new VirtualSentryArmBlockEntity(
-                null,
                 context.localPos,
                 context.state
         );
@@ -77,7 +77,6 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
         if (context.temporaryData == null && context.blockEntityData != null) {
             VirtualSentryArmBlockEntity virtualBE = new VirtualSentryArmBlockEntity(
-                    null,
                     context.localPos,
                     context.state
             );

@@ -23,6 +23,7 @@ import com.tacz.guns.resource.pojo.data.gun.GunData;
 import com.tacz.guns.resource.pojo.data.gun.InaccuracyType;
 import euphy.upo.sentrymechanicalarm.network.NetworkHandler;
 import euphy.upo.sentrymechanicalarm.network.SentryShootPacket;
+import euphy.upo.sentrymechanicalarm.registry.SentryRegistry;
 import euphy.upo.sentrymechanicalarm.util.IArmAmmoStorage;
 import euphy.upo.sentrymechanicalarm.util.SentryFakePlayer;
 import euphy.upo.sentrymechanicalarm.util.SentryTargetSavedData;
@@ -119,8 +120,8 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
             FireMode fireMode
     ) {}
 
-    public SentryArmBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-        super(type, pos, state);
+    public SentryArmBlockEntity(BlockPos pos, BlockState state) {
+        super(SentryRegistry.SENTRY_ARM_BE.get(), pos, state);
         baseAngle = LerpedFloat.angular().startWithValue(0);
         lowerArmAngle = LerpedFloat.angular().startWithValue(135);
         upperArmAngle = LerpedFloat.angular().startWithValue(45);
@@ -1404,7 +1405,7 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         Vec3 pos = fakePlayer.getEyePosition();
         NetworkHandler.sendToNearby(
                 new SentryShootPacket(
-                        this.worldPosition, -1, ItemNBTHelper.getOrCreateTag(heldItem), pos, pos, SentryShootPacket.ActionType.SHOOT),
+                        this.worldPosition, -1, ItemNBTHelper.getOrCreateTag(heldItem), pos, pos, type),
                 this.level, this.worldPosition);
     }
 

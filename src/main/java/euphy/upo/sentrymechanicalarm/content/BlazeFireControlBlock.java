@@ -1,13 +1,13 @@
 package euphy.upo.sentrymechanicalarm.content;
 
+import com.simibubi.create.AllBlocks;
+import com.simibubi.create.AllItems;
 import com.simibubi.create.AllShapes;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlock;
 import com.simibubi.create.foundation.block.IBE;
 import euphy.upo.sentrymechanicalarm.registry.SentryRegistry;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Containers;
@@ -20,9 +20,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -30,8 +32,16 @@ import net.neoforged.neoforge.items.ItemHandlerHelper;
 
 public class BlazeFireControlBlock extends Block implements IBE<BlazeFireControlBlockEntity> {
 
+    public BlazeFireControlBlock() {
+        this(BlockBehaviour.Properties.of());
+    }
+
     public BlazeFireControlBlock(Properties properties) {
-        super(properties);
+        super(properties
+                .mapColor(MapColor.NONE)
+                .lightLevel(s -> 14)
+                .noOcclusion()
+                .isRedstoneConductor((state, world, pos) -> false));
     }
 
     @Override
@@ -50,8 +60,7 @@ public class BlazeFireControlBlock extends Block implements IBE<BlazeFireControl
     }
 
     @Override
-    public ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
-
+    public ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
         if (hand == InteractionHand.OFF_HAND) {
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
@@ -61,7 +70,6 @@ public class BlazeFireControlBlock extends Block implements IBE<BlazeFireControl
         }
 
         if (level.getBlockEntity(pos) instanceof BlazeFireControlBlockEntity be) {
-
             if (stack.getItem() instanceof ApplePieItem) {
                 if (level.isClientSide) {
                     double x = pos.getX() + 0.5;
@@ -94,8 +102,15 @@ public class BlazeFireControlBlock extends Block implements IBE<BlazeFireControl
                     return ItemInteractionResult.SUCCESS;
                 }
             }
+        }
 
-            if (stack.isEmpty() && !be.inventory.getStackInSlot(0).isEmpty()) {
+        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+    }
+
+    @Override
+    public InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
+        if (level.getBlockEntity(pos) instanceof BlazeFireControlBlockEntity be) {
+            if (!be.inventory.getStackInSlot(0).isEmpty()) {
                 if (!level.isClientSide) {
                     ItemStack extracted = be.inventory.getStackInSlot(0);
                     ItemHandlerHelper.giveItemToPlayer(player, extracted.copy());
@@ -103,37 +118,30 @@ public class BlazeFireControlBlock extends Block implements IBE<BlazeFireControl
                     level.playSound(null, pos, SoundEvents.ITEM_FRAME_REMOVE_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
                     be.notifyUpdate();
                 }
-                return ItemInteractionResult.SUCCESS;
+                return InteractionResult.SUCCESS;
             }
 
-            if (stack.isEmpty() && be.inventory.getStackInSlot(0).isEmpty()) {
-                if (!level.isClientSide) {
-                    be.showRandomEmoticon();
-                }
-                return ItemInteractionResult.SUCCESS;
+            if (!level.isClientSide) {
+                be.showRandomEmoticon();
             }
+            return InteractionResult.SUCCESS;
         }
 
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return InteractionResult.PASS;
     }
-
 
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
-
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof BlazeFireControlBlockEntity fireControl) {
-
                 ItemStack stack = fireControl.inventory.getStackInSlot(0);
                 if (!stack.isEmpty()) {
                     Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stack);
                 }
-
                 fireControl.notifyConnectedSentries(true);
             }
         }
-
         super.onRemove(state, level, pos, newState, isMoving);
     }
 
@@ -144,9 +152,7 @@ public class BlazeFireControlBlock extends Block implements IBE<BlazeFireControl
                 || projectile.getClass().getName().contains("tacz");
         if (isTacZBullet) {
             BlockPos pos = hit.getBlockPos();
-            BlockState emptyBurnerState = net.minecraft.core.registries.BuiltInRegistries.BLOCK
-                    .get(ResourceLocation.fromNamespaceAndPath("create", "blaze_burner"))
-                    .defaultBlockState()
+            BlockState emptyBurnerState = AllBlocks.BLAZE_BURNER.getDefaultState()
                     .setValue(BlazeBurnerBlock.HEAT_LEVEL, BlazeBurnerBlock.HeatLevel.NONE);
 
             level.setBlockAndUpdate(pos, emptyBurnerState);
@@ -158,7 +164,6 @@ public class BlazeFireControlBlock extends Block implements IBE<BlazeFireControl
                 serverLevel.sendParticles(ParticleTypes.CLOUD, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 15, 0.3, 0.3, 0.3, 0.1);
             }
         }
-
         super.onProjectileHit(level, state, hit, projectile);
     }
 }

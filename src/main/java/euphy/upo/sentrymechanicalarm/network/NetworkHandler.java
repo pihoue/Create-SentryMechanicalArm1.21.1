@@ -6,27 +6,28 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.handling.IPayloadHandler;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
+@EventBusSubscriber(modid = SentryMechanicalArm.MODID)
 public class NetworkHandler {
 
     @SubscribeEvent
     public static void register(final RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
 
-        registrar.playBidirectional(
+        registrar.playToClient(
                 SentryShootPacket.TYPE,
                 SentryShootPacket.CODEC,
-                (payload, context) -> SentryShootPacket.handle(payload, (ServerPlayer) context.player())
+                (payload, context) -> SentryShootPacket.handle(payload, null)
         );
 
-        registrar.playBidirectional(
+        registrar.playToClient(
                 SentryContraptionShootPacket.TYPE,
                 SentryContraptionShootPacket.CODEC,
-                (payload, context) -> SentryContraptionShootPacket.handle(payload, (ServerPlayer) context.player())
+                (payload, context) -> SentryContraptionShootPacket.handle(payload, null)
         );
 
         registrar.playToServer(

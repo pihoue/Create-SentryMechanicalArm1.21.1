@@ -3,6 +3,7 @@ package euphy.upo.sentrymechanicalarm.util;
 import com.mojang.authlib.GameProfile;
 import com.tacz.guns.api.entity.IGunOperator;
 import com.tacz.guns.api.item.IGun;
+import euphy.upo.sentrymechanicalarm.content.SentryArmBlock;
 import euphy.upo.sentrymechanicalarm.content.SentryArmBlockEntity;
 import euphy.upo.sentrymechanicalarm.content.VirtualSentryArmBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -139,8 +140,8 @@ public class SentryFakePlayer {
         if (!isVirtual) {
             net.minecraft.world.level.block.state.BlockState state = arm.getBlockState();
             boolean isCeiling = false;
-            if (state.hasProperty(euphy.upo.sentrymechanicalarm.content.SentryArmBlock.CEILING)) {
-                isCeiling = state.getValue(euphy.upo.sentrymechanicalarm.content.SentryArmBlock.CEILING);
+            if (state.hasProperty(SentryArmBlock.CEILING)) {
+                isCeiling = state.getValue(SentryArmBlock.CEILING);
             }
 
             double x = arm.getBlockPos().getX() + 0.5;

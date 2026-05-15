@@ -8,8 +8,8 @@ import net.minecraft.world.level.block.state.BlockState;
  
 public class VirtualSentryArmBlockEntity extends SentryArmBlockEntity {
     private BlockPos virtualPos;
-    public VirtualSentryArmBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-        super(type, pos, state);
+    public VirtualSentryArmBlockEntity(BlockPos pos, BlockState state) {
+        super(pos, state);
         this.virtualPos = pos;
     }
 

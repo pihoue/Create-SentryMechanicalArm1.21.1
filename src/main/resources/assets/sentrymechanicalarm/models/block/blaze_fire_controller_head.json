@@ -6,7 +6,7 @@
 	"textures": {
 		"1": "sentrymechanicalarm:block/hair",
 		"2": "sentrymechanicalarm:block/blaze_fire_controller",
-		"particle": "sentrymechanicalarm:block/blaze_fire_controller"
+		"particle": "blaze_fire_controller"
 	},
 	"elements": [
 		{

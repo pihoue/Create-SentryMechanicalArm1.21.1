@@ -3,6 +3,7 @@ package euphy.upo.sentrymechanicalarm.content;
 import com.mojang.logging.LogUtils;
 import com.tacz.guns.api.event.common.EntityKillByGunEvent;
 import com.tacz.guns.api.event.common.GunFireEvent;
+import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
 import euphy.upo.sentrymechanicalarm.util.SentryFakePlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -32,7 +33,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.WeakHashMap;
 
-@EventBusSubscriber
+@EventBusSubscriber(modid = SentryMechanicalArm.MODID, bus = EventBusSubscriber.Bus.GAME)
 public class SentryEventHandler {
 
     public static final Logger LOGGER = LogUtils.getLogger();

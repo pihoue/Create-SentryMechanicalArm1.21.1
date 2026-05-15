@@ -12,6 +12,11 @@ public class SentryPartialModels {
     public static final PartialModel BASE = block("blaze_fire_control");
     public static final PartialModel SENTRU_BASE = block("sentry_base");
     public static final PartialModel SENTRU_COG = block("sentry_cog");
+    public static final PartialModel ARM_LOWER_BODY = block("sentry_arm_lower_body");
+    public static final PartialModel ARM_UPPER_BODY = block("sentry_arm_upper_body");
+    public static final PartialModel ARM_CLAW_BASE = block("sentry_arm_claw_base");
+    public static final PartialModel ARM_CLAW_GRIP_UPPER = block("sentry_arm_claw_grip_upper");
+    public static final PartialModel ARM_CLAW_GRIP_LOWER = block("sentry_arm_claw_grip_lower");
 
     private static PartialModel block(String path) {
         return PartialModel.of(

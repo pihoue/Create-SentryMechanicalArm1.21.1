@@ -101,7 +101,7 @@ public record SentryContraptionShootPacket(int contraptionId, BlockPos localPos,
                 TimelessAPI.getCommonGunIndex(iGun.getGunId(msg.gunStack())).ifPresent(index -> {
                     GunData gunData = index.getGunData();
                     if (gunData.getFireSound() != null) {
-                        float finalVol = 4.0f * gunData.getFireSound().getFireMultiplier();
+                        float finalVol = 3.0f * gunData.getFireSound().getFireMultiplier();
                         float pitch = 1.0f + (level.random.nextFloat() - 0.5f) * 0.1f;
                         int distance = 32;
 

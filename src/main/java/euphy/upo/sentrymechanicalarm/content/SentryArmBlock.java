@@ -1,27 +1,19 @@
 package euphy.upo.sentrymechanicalarm.content;
 
-import com.simibubi.create.AllItems;
 import com.simibubi.create.AllShapes;
 import com.simibubi.create.content.kinetics.base.KineticBlock;
 import com.simibubi.create.content.kinetics.simpleRelays.ICogWheel;
 import com.simibubi.create.foundation.block.IBE;
-import com.tacz.guns.api.item.IAmmoBox;
-import com.tacz.guns.api.item.IGun;
 import euphy.upo.sentrymechanicalarm.registry.SentryRegistry;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -34,7 +26,6 @@ import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.neoforged.neoforge.common.Tags;
 
 public class SentryArmBlock extends KineticBlock implements IBE<SentryArmBlockEntity>, ICogWheel {
 
@@ -106,102 +97,33 @@ public class SentryArmBlock extends KineticBlock implements IBE<SentryArmBlockEn
     }
 
     @Override
-    public ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-
+    public ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, net.minecraft.world.InteractionHand hand, BlockHitResult hit) {
         String itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
         if ("create:wrench".equals(itemId) || stack.getItem().getDescriptionId().contains("wrench")) {
             return super.useItemOn(stack, state, level, pos, player, hand, hit);
         }
+        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+    }
 
-        if (hand != InteractionHand.MAIN_HAND) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-
+    @Override
+    public InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         SentryArmBlockEntity sentry = this.getBlockEntity(level, pos);
-        if (sentry == null) return ItemInteractionResult.FAIL;
-
-        boolean isDye = stack.is(Tags.Items.DYES);
-
-        boolean hasWater = false;
-        if (!isDye) {
-            hasWater = stack.getItem() == Items.WATER_BUCKET;
-        }
-
-        if (isDye || hasWater) {
-            DyeColor colorToApply = isDye ? DyeColor.getColor(stack) : null;
-
-            if (sentry.applyColor(colorToApply)) {
-                int newColorId = (colorToApply == null) ? 0 : (colorToApply.getId() + 1);
-
-                BlockState newState = state.setValue(COLOR_TYPE, newColorId);
-                level.setBlock(pos, newState, 3);
-
-                if (!level.isClientSide) {
-                    level.playSound(null, pos, SoundEvents.DYE_USE, SoundSource.BLOCKS, 1.0f, 1.0f);
-                }
-                return ItemInteractionResult.SUCCESS;
-            }
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        }
+        if (sentry == null) return InteractionResult.PASS;
 
         ItemStack armHeldStack = sentry.getHeldItem();
-
-        if (stack.getItem() instanceof IGun) {
-            if (armHeldStack.isEmpty()) {
-                if (!level.isClientSide) {
-                    ItemStack gunCopy = stack.copy();
-                    gunCopy.setCount(1);
-                    sentry.setHeldItem(gunCopy);
-                    stack.shrink(1);
-                    level.playSound(null, pos, SoundEvents.ANVIL_PLACE, SoundSource.BLOCKS, 0.5f, 1.5f);
-                    sentry.setChanged();
-                    sentry.sendData();
+        if (!armHeldStack.isEmpty()) {
+            if (!level.isClientSide) {
+                if (!player.getInventory().add(armHeldStack)) {
+                    Block.popResource(level, pos, armHeldStack);
                 }
-                return ItemInteractionResult.SUCCESS;
+                sentry.setHeldItem(ItemStack.EMPTY);
+                level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.5f, 1.0f);
+                sentry.setChanged();
+                sentry.sendData();
             }
+            return InteractionResult.SUCCESS;
         }
 
-        else if (stack.getItem() instanceof IAmmoBox iBox) {
-            if (!armHeldStack.isEmpty() && armHeldStack.getItem() instanceof IGun) {
-
-                boolean isCompatible = iBox.isAmmoBoxOfGun(armHeldStack, stack);
-                boolean isEmpty = iBox.getAmmoCount(stack) == 0;
-
-                if (!isCompatible && !isEmpty) {
-                    if (!level.isClientSide) {
-                        player.displayClientMessage(Component.translatable("sentry.tooltip.ammobox_3").withStyle(ChatFormatting.RED), true);
-                    }
-                    return ItemInteractionResult.SUCCESS;
-                }
-
-                if (sentry.addAmmoBox(stack)) {
-                    if (!level.isClientSide) {
-                        if(!player.isCreative()) stack.shrink(1);
-                        level.playSound(null, pos, SoundEvents.NETHERITE_BLOCK_PLACE, SoundSource.BLOCKS, 1.0f, 1.0f);
-                        player.displayClientMessage(Component.translatable("sentry.tooltip.ammobox_2").withStyle(ChatFormatting.GREEN), true);
-                    }
-                } else {
-                    if (!level.isClientSide) {
-                        player.displayClientMessage(Component.translatable("sentry.tooltip.ammobox_1").withStyle(ChatFormatting.RED), true);
-                    }
-                }
-                return ItemInteractionResult.SUCCESS;
-            }
-        }
-
-        else if (stack.isEmpty()) {
-            if (!armHeldStack.isEmpty()) {
-                if (!level.isClientSide) {
-                    if (!player.getInventory().add(armHeldStack)) {
-                        Block.popResource(level, pos, armHeldStack);
-                    }
-                    sentry.setHeldItem(ItemStack.EMPTY);
-                    level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.5f, 1.0f);
-                    sentry.setChanged();
-                    sentry.sendData();
-                }
-                return ItemInteractionResult.SUCCESS;
-            }
-        }
-
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return InteractionResult.PASS;
     }
 }

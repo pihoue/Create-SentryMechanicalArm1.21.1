@@ -9,6 +9,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+
 import org.slf4j.Logger;
 
 
@@ -26,6 +27,7 @@ public class SentryMechanicalArm
         ModDataComponents.register(modEventBus);
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(DataGenerators::gatherData);
+        
     }
 
     private void commonSetup(final FMLCommonSetupEvent event)

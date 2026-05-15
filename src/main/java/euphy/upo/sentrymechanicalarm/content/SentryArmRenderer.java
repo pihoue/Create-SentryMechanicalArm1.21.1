@@ -5,9 +5,8 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.logging.LogUtils;
 import com.mojang.math.Axis;
-import com.simibubi.create.AllPartialModels;
+
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
-import com.simibubi.create.content.kinetics.mechanicalArm.ArmBlock;
 import com.simibubi.create.foundation.virtualWorld.VirtualRenderWorld;
 import com.tacz.guns.api.TimelessAPI;
 import com.tacz.guns.api.item.IGun;
@@ -87,7 +86,7 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
         PoseStack msLocal = new PoseStack();
         PoseTransformStack msr = TransformStack.of(msLocal);
 
-        boolean inverted = blockState.getValue(ArmBlock.CEILING);
+        boolean inverted = blockState.getValue(SentryArmBlock.CEILING);
 
         float baseAngle = be.baseAngle.getValue(pt);
         float lowerArmAngle = be.lowerArmAngle.getValue(pt) - 135.0F;
@@ -344,20 +343,21 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
 
     private void vertex(VertexConsumer consumer, Matrix4f pose, Matrix3f normal, float x, float y, float z, float u, float v) {
         consumer.addVertex(pose, x, y, z)
-            .setColor(255, 255, 255, 255)
-            .setUv(u, v)
-            .setLight(15728880)
-            .setNormal(0, 1, 0);
+                .setColor(255, 255, 255, 255)
+                .setUv(u, v)
+                .setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(15728880)
+                .setNormal(0, 1, 0);
     }
 
     private void renderArm(VertexConsumer builder, PoseStack ms, PoseStack msLocal, TransformStack msr, BlockState blockState, int color, float baseAngle, float lowerArmAngle, float upperArmAngle, float headAngle, boolean inverted, boolean hasItem, boolean isBlockItem, int light, Optional<DyeColor> dyeColor) {
  
         SuperByteBuffer base = CachedBuffers.partial(SentryPartialModels.SENTRU_BASE, blockState).light(light);
-        SuperByteBuffer lowerBody = CachedBuffers.partial(AllPartialModels.ARM_LOWER_BODY, blockState).light(light);
-        SuperByteBuffer upperBody = CachedBuffers.partial(AllPartialModels.ARM_UPPER_BODY, blockState).light(light);
-        SuperByteBuffer claw = CachedBuffers.partial(AllPartialModels.ARM_CLAW_BASE, blockState).light(light);
-        SuperByteBuffer upperClawGrip = CachedBuffers.partial(AllPartialModels.ARM_CLAW_GRIP_UPPER, blockState).light(light);
-        SuperByteBuffer lowerClawGrip = CachedBuffers.partial(AllPartialModels.ARM_CLAW_GRIP_LOWER, blockState).light(light);
+        SuperByteBuffer lowerBody = CachedBuffers.partial(SentryPartialModels.ARM_LOWER_BODY, blockState).light(light);
+        SuperByteBuffer upperBody = CachedBuffers.partial(SentryPartialModels.ARM_UPPER_BODY, blockState).light(light);
+        SuperByteBuffer claw = CachedBuffers.partial(SentryPartialModels.ARM_CLAW_BASE, blockState).light(light);
+        SuperByteBuffer upperClawGrip = CachedBuffers.partial(SentryPartialModels.ARM_CLAW_GRIP_UPPER, blockState).light(light);
+        SuperByteBuffer lowerClawGrip = CachedBuffers.partial(SentryPartialModels.ARM_CLAW_GRIP_LOWER, blockState).light(light);
 
         applyDye(base, dyeColor, SentrySpriteShifts.BASE_TEXTURES);
         applyDye(lowerBody, dyeColor, SentrySpriteShifts.ARM_TEXTURES);
@@ -531,7 +531,7 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
                                            com.simibubi.create.content.contraptions.render.ContraptionMatrices matrices,
                                            MultiBufferSource buffer) {
         if (context.temporaryData == null || !(context.temporaryData instanceof VirtualSentryArmBlockEntity)) {
-            VirtualSentryArmBlockEntity newBE = new VirtualSentryArmBlockEntity(null, BlockPos.ZERO, context.state);
+            VirtualSentryArmBlockEntity newBE = new VirtualSentryArmBlockEntity(BlockPos.ZERO, context.state);
             if (context.blockEntityData != null) {
                 if (context.blockEntityData.contains("Angles")) {
                     CompoundTag angles = context.blockEntityData.getCompound("Angles");
@@ -564,7 +564,7 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
         float lowerArmAngle = virtualBE.lowerArmAngle.getValue(pt) - 135.0F;
         float upperArmAngle = virtualBE.upperArmAngle.getValue(pt) - 90.0F;
         float headAngle = virtualBE.headAngle.getValue(pt);
-        boolean inverted = blockState.getValue(ArmBlock.CEILING);
+        boolean inverted = blockState.getValue(SentryArmBlock.CEILING);
         int light = net.minecraft.client.renderer.LightTexture.FULL_BRIGHT;
         if (context.contraption.entity != null) {
             Vec3 localPos = net.createmod.catnip.math.VecHelper.getCenterOf(context.localPos);
@@ -605,7 +605,7 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
         ms.pushPose();
         transformBase(msr, baseAngle);
         transformLowerArm(msr, lowerArmAngle);
-        SuperByteBuffer lowerBodyBuffer = CachedBuffers.partial(AllPartialModels.ARM_LOWER_BODY, blockState);
+        SuperByteBuffer lowerBodyBuffer = CachedBuffers.partial(SentryPartialModels.ARM_LOWER_BODY, blockState);
         applyDye(lowerBodyBuffer, virtualBE.color, SentrySpriteShifts.ARM_TEXTURES);
         lowerBodyBuffer
                 .light(light)
@@ -614,7 +614,7 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
 
         transformUpperArm(msr, upperArmAngle);
 
-        SuperByteBuffer upperBodyBuffer = CachedBuffers.partial(AllPartialModels.ARM_UPPER_BODY, blockState);
+        SuperByteBuffer upperBodyBuffer = CachedBuffers.partial(SentryPartialModels.ARM_UPPER_BODY, blockState);
         applyDye(upperBodyBuffer, virtualBE.color, SentrySpriteShifts.ARM_TEXTURES);
         upperBodyBuffer
                 .light(light)
@@ -624,7 +624,7 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
         transformHead(msr, headAngle);
 
         if (inverted) msr.rotateZDegrees(180.0F);
-        SuperByteBuffer clawBaseBuffer = CachedBuffers.partial(AllPartialModels.ARM_CLAW_BASE, blockState);
+        SuperByteBuffer clawBaseBuffer = CachedBuffers.partial(SentryPartialModels.ARM_CLAW_BASE, blockState);
         applyDye(clawBaseBuffer, virtualBE.color, SentrySpriteShifts.ARM_TEXTURES);
         clawBaseBuffer
                 .light(light)
@@ -641,7 +641,7 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
                 clawTipWorldMatrix.mul(ms.last().pose());
             }
 
-            PartialModel gripModel = (flip > 0) ? AllPartialModels.ARM_CLAW_GRIP_LOWER : AllPartialModels.ARM_CLAW_GRIP_UPPER;
+            PartialModel gripModel = (flip > 0) ? SentryPartialModels.ARM_CLAW_GRIP_LOWER : SentryPartialModels.ARM_CLAW_GRIP_UPPER;
 
             SuperByteBuffer gripBuffer = CachedBuffers.partial(gripModel, blockState);
             applyDye(gripBuffer, virtualBE.color, SentrySpriteShifts.ARM_TEXTURES);
@@ -906,10 +906,11 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
 
     private static void vertexStatic(VertexConsumer consumer, Matrix4f pose, Matrix3f normal, float x, float y, float z, float u, float v) {
         consumer.addVertex(pose, x, y, z)
-            .setColor(255, 255, 255, 255)
-            .setUv(u, v)
-            .setLight(15728880)
-            .setNormal(0, 1, 0);
+                .setColor(255, 255, 255, 255)
+                .setUv(u, v)
+                .setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(15728880)
+                .setNormal(0, 1, 0);
     }
 
 

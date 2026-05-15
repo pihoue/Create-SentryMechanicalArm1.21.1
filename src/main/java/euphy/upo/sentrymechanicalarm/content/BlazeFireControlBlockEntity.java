@@ -20,6 +20,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import euphy.upo.sentrymechanicalarm.util.ItemNBTHelper;
+import euphy.upo.sentrymechanicalarm.registry.SentryRegistry;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
@@ -59,8 +60,8 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity {
 
     };
 
-    public BlazeFireControlBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-        super(type, pos, state);
+    public BlazeFireControlBlockEntity(BlockPos pos, BlockState state) {
+        super(SentryRegistry.BLAZE_FIRE_CONTROL_BE.get(), pos, state);
     }
 
     public IItemHandler getItemHandler() {

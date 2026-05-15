@@ -64,6 +64,7 @@ public record SentryRecordTargetPacket(int entityId) implements CustomPacketPayl
 
         if (!alreadyExists) {
             listTag.add(StringTag.valueOf(name));
+            ItemNBTHelper.setTag(stack, tag);
             player.displayClientMessage(Component.translatable("message.sentrymechanicalarm.added_target", name), true);
         } else {
             player.displayClientMessage(Component.translatable("message.sentrymechanicalarm.already_on_list", name), true);

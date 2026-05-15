@@ -17,7 +17,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
-@EventBusSubscriber(value = Dist.CLIENT)
+@EventBusSubscriber(modid = SentryMechanicalArm.MODID, value = Dist.CLIENT)
 public class SentryHudHandler {
 
     private static final Component MARK_TEXT = Component.translatable("message.sentrymechanicalarm.can_mark")

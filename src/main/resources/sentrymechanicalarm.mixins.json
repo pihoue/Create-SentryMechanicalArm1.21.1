@@ -4,11 +4,12 @@
   "package": "euphy.upo.sentrymechanicalarm.mixin",
   "compatibilityLevel": "JAVA_21",
   "refmap": "sentrymechanicalarm.refmap.json",
-  "mixins": [
+"mixins": [
     "BeltDeployerCallbacksMixin",
     "DeployerBlockEntityMixin",
     "DeployerHandlerMixin",
-    "InteractKeyTextOverlayMixin"
+    "InteractKeyTextOverlayMixin",
+    "SawBlockEntityMixin"
   ],
   "client": [
     "InteractKeyMixin"

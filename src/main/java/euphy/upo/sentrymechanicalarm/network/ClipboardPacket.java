@@ -44,12 +44,14 @@ public record ClipboardPacket(int operation, int index) implements CustomPacketP
             if (mainHand.getItem() instanceof FireControlClipboardItem ||
                 offHand.getItem() instanceof FireControlClipboardItem) {
                 ItemStack stack = mainHand.getItem() instanceof FireControlClipboardItem ? mainHand : offHand;
+                CompoundTag tag = ItemNBTHelper.getOrCreateTag(stack);
 
-                if (ItemNBTHelper.hasTag(stack) && ItemNBTHelper.getTag(stack).contains("TargetList", 9)) {
-                    ListTag list = ItemNBTHelper.getTag(stack).getList("TargetList", 8);
+                if (tag.contains("TargetList", 9)) {
+                    ListTag list = tag.getList("TargetList", 8);
                     int index = packet.index();
                     if (index >= 0 && index < list.size()) {
                         list.remove(index);
+                        ItemNBTHelper.setTag(stack, tag);
                     }
                 }
             }

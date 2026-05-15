@@ -1,6 +1,7 @@
 package euphy.upo.sentrymechanicalarm.client;
 
 import org.lwjgl.glfw.GLFW;
+import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
 import euphy.upo.sentrymechanicalarm.content.FireControlClipboardItem;
 import euphy.upo.sentrymechanicalarm.network.SentryRecordTargetPacket;
 import net.minecraft.client.Minecraft;
@@ -11,10 +12,13 @@ import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.*;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.InputEvent;
-import net.createmod.catnip.platform.CatnipServices;
+import net.neoforged.neoforge.network.PacketDistributor;
 
+@EventBusSubscriber(modid = SentryMechanicalArm.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
 public class SentryClientInputHandler {
 
     private static long lastRecordTime = 0;
@@ -47,7 +51,7 @@ public class SentryClientInputHandler {
         Entity target = getLookedAtEntity(player, 256.0);
 
         if (target != null) {
-            CatnipServices.NETWORK.sendToServer(new SentryRecordTargetPacket(target.getId()));
+            PacketDistributor.sendToServer(new SentryRecordTargetPacket(target.getId()));
             player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.6f, 1.5f);
             lastRecordTime = System.currentTimeMillis();
         }

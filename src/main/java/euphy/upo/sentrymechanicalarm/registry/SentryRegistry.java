@@ -57,14 +57,17 @@ public class SentryRegistry {
     public static final DeferredHolder<Item, BlazeFireControlBlockItem> BLAZE_FIRE_CONTROL_ITEM = ITEMS.register("blaze_fire_control",
             id -> new BlazeFireControlBlockItem(BLAZE_FIRE_CONTROL.get(), new Item.Properties().stacksTo(1)));
 
+    public static final DeferredHolder<Item, BlockItem> SENTRY_ARM_ITEM = ITEMS.register("sentry_mechanical_arm",
+            id -> new BlockItem(SENTRY_ARM_BLOCK.get(), new Item.Properties()));
+
     public static final DeferredHolder<Item, FireControlClipboardItem> FIRE_CONTROL_CLIPBOARD = ITEMS.register("fire_control_clipboard",
             id -> new FireControlClipboardItem(new Item.Properties()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SentryArmBlockEntity>> SENTRY_ARM_BE = BLOCK_ENTITIES.register("sentry_mechanical_arm",
-            () -> BlockEntityType.Builder.of((pos, state) -> new SentryArmBlockEntity(null, pos, state), SENTRY_ARM_BLOCK.get()).build(null));
+            () -> BlockEntityType.Builder.of(SentryArmBlockEntity::new, SENTRY_ARM_BLOCK.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BlazeFireControlBlockEntity>> BLAZE_FIRE_CONTROL_BE = BLOCK_ENTITIES.register("blaze_fire_control",
-            () -> BlockEntityType.Builder.of((pos, state) -> new BlazeFireControlBlockEntity(null, pos, state), BLAZE_FIRE_CONTROL.get()).build(null));
+            () -> BlockEntityType.Builder.of(BlazeFireControlBlockEntity::new, BLAZE_FIRE_CONTROL.get()).build(null));
 
     public static final DeferredHolder<MenuType<?>, MenuType<FireControlMenu>> FIRE_CONTROL_MENU = MENUS.register("fire_control_menu",
             () -> new MenuType<>(
@@ -75,11 +78,12 @@ public class SentryRegistry {
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> SENTRY_TAB = CREATIVE_TABS.register("main",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup." + MODID))
-                    .icon(() -> new net.minecraft.world.item.ItemStack(BLAZE_FIRE_CONTROL.get(), 1))
+                    .icon(() -> new net.minecraft.world.item.ItemStack(BLAZE_FIRE_CONTROL_ITEM.get(), 1))
                     .displayItems((parameters, output) -> {
-                        output.accept(new net.minecraft.world.item.ItemStack(SENTRY_ARM_BLOCK.get(), 1));
-                        output.accept(new net.minecraft.world.item.ItemStack(BLAZE_FIRE_CONTROL.get(), 1));
+                        output.accept(new net.minecraft.world.item.ItemStack(SENTRY_ARM_ITEM.get(), 1));
+                        output.accept(new net.minecraft.world.item.ItemStack(BLAZE_FIRE_CONTROL_ITEM.get(), 1));
                         output.accept(new net.minecraft.world.item.ItemStack(FIRE_CONTROL_CLIPBOARD.get(), 1));
+                        output.accept(new net.minecraft.world.item.ItemStack(UNFINISHED_AMMO.get(), 1));
                         output.accept(new net.minecraft.world.item.ItemStack(APPLE_PIE.get(), 1));
                     })
                     .build());

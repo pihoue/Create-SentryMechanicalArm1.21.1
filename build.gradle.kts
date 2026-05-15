@@ -17,8 +17,16 @@ java {
 repositories {
     mavenCentral()
     maven {
+        name = "NeoForge Maven"
+        url = uri("https://maven.neoforged.net/releases")
+    }
+    maven {
         name = "Create Maven"
         url = uri("https://maven.createmod.net")
+    }
+    maven {
+        name = "Registrate Maven"
+        url = uri("https://maven.ithundxr.dev/snapshots")
     }
     maven {
         name = "Tterrag Maven"
@@ -31,13 +39,18 @@ repositories {
     maven {
         name = "Modrinth"
         url = uri("https://api.modrinth.com/maven")
-        content {
-            includeGroup("maven.modrinth")
-        }
     }
     maven {
         name = "CurseForge"
         url = uri("https://cursemaven.com")
+    }
+    maven {
+        name = "FTB Maven"
+        url = uri("https://maven.ftb.dev/releases")
+    }
+    maven {
+        name = "Architectury Maven"
+        url = uri("https://maven.architectury.dev/releases")
     }
 }
 
@@ -69,18 +82,17 @@ neoForge {
 
 dependencies {
     // NeoForge
-    implementation("net.neoforged:neoforge:21.1.93")
+    implementation(libs.neoforge)
 
-    // Create - from Create Maven (maven.createmod.net)
-    implementation("com.simibubi.create:create-1.21.1:6.0.10-217")
+    // Create - slim jar without transitive deps to avoid missing Curios/CC/FTB/Architectury
+    implementation("com.simibubi.create:create-1.21.1:6.0.10-217:slim") {
+        isTransitive = false
+    }
 
-    // LuaJ - for script support (Create shades this internally)
-    implementation("org.luaj:luaj-jse:3.0.1")
+    // Registrate (Create's dependency, needed explicitly when using :slim)
+    implementation("com.tterrag.registrate:Registrate:MC1.21-1.3.0+67")
 
-    // TaCZ (Timeless and Classics Guns Zero) - NeoForge 1.21.1 version from Modrinth Maven
-    implementation("maven.modrinth:tacz-1.21.1:1.1.8-r2")
-
-    // Ponder (needed at compile time; Create has it as runtime-only)
+    // Ponder
     implementation(libs.ponder)
 
     // Flywheel
@@ -90,6 +102,12 @@ dependencies {
     // JEI
     compileOnly(libs.jei.api)
     runtimeOnly(libs.jei.runtime)
+
+    // LuaJ - for script support
+    implementation("org.luaj:luaj-jse:3.0.1")
+
+    // TaCZ (Timeless and Classics Guns Zero) - NeoForge 1.21.1 version from Modrinth Maven
+    implementation("maven.modrinth:tacz-1.21.1:1.1.8-r2")
 }
 
 tasks.named<Jar>("jar") {

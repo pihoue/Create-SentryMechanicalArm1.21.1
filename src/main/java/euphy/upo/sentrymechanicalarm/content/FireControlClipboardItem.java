@@ -21,7 +21,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
-
 import euphy.upo.sentrymechanicalarm.util.ItemNBTHelper;
 import org.jetbrains.annotations.Nullable;
 
@@ -67,14 +66,6 @@ public class FireControlClipboardItem extends Item {
         if (player == null) return InteractionResult.PASS;
 
         return handleInteraction(context.getLevel(), player, context.getItemInHand());
-    }
-
-    @Override
-    public InteractionResult interactLivingEntity(ItemStack stack, Player player, LivingEntity interactionTarget, InteractionHand usedHand) {
-        if (!player.level().isClientSide) {
-            addNameToList(stack, interactionTarget.getName().getString(), player);
-        }
-        return InteractionResult.SUCCESS;
     }
 
     private void addNameToList(ItemStack stack, String name, Player player) {

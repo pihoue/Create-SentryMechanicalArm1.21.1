@@ -30,7 +30,7 @@
 	"message.sentrymechanicalarm.target_exists": "%s は既にターゲットに追加されています",
 	"item.sentrymechanicalarm.fire_control_clipboard.tooltip.summary": "撃っても罪に問われない奴らのリスト。",
 	"item.sentrymechanicalarm.fire_control_clipboard.tooltip.condition1": "手に持っているとき",
-	"item.sentrymechanicalarm.fire_control_clipboard.tooltip.behaviour1": "エンティティを右クリックしてリストに追加、Shift右クリックで自分をリストに追加できます。又、望遠鏡と組み合わせて使用すると遠隔で追加することができます。",
+	"item.sentrymechanicalarm.fire_control_clipboard.tooltip.behaviour1": "Shift右クリックで自分をリストに追加；メインハンドの望遠鏡+オフハンドのリスト+左クリックで遠隔マーク可能。",
 	"item.sentrymechanicalarm.fire_control_clipboard.tooltip.condition2": "ファイアコントロールに使用したとき",
 	"item.sentrymechanicalarm.fire_control_clipboard.tooltip.behaviour2": "対象のファイアコントロールと接続されたセントリーメカニカルアームは、リストに載っている(もしくは載っていない)エンティティのみを攻撃。",
 	"item.sentrymechanicalarm.fire_control_clipboard": "追跡リスト",
