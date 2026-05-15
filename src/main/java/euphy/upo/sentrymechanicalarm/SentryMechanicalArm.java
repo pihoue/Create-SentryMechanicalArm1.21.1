@@ -32,7 +32,10 @@ public class SentryMechanicalArm
 
     private void commonSetup(final FMLCommonSetupEvent event)
     {
-        event.enqueueWork(SentryRegistry::registerAllStressValues);
+        event.enqueueWork(() -> {
+            SentryRegistry.registerAllStressValues();
+            SentryRegistry.registerMovementBehaviours();
+        });
     }
 
 

@@ -25,7 +25,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import org.joml.Vector3f;
 
 @EventBusSubscriber(modid = euphy.upo.sentrymechanicalarm.SentryMechanicalArm.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
-public class SentryLinkHandler {
+public class
+SentryLinkHandler {
 
     private static BlockPos firstSelectedPos = null;
     private static boolean isFirstSentry = false; 

@@ -64,8 +64,16 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         );
 
         virtualBE.setVirtualLevel(context.world);
-        virtualBE.read(context.blockEntityData, null, false);
+        if (context.blockEntityData != null) {
+            virtualBE.read(context.blockEntityData, context.world != null ? context.world.registryAccess() : null, false);
+        }
         context.temporaryData = virtualBE;
+
+        float rpm = 16f;
+        if (context.blockEntityData != null && context.blockEntityData.contains("Speed")) {
+            rpm = Math.abs(context.blockEntityData.getFloat("Speed"));
+        }
+        virtualBE.setContraptionSpeed(rpm);
 
         if (!context.world.isClientSide) {
             if (!context.data.contains("ShootDelay")) context.data.putFloat("ShootDelay", 0f);
@@ -81,18 +89,20 @@ public class SentryMovementBehaviour implements MovementBehaviour {
                     context.state
             );
             virtualBE.setVirtualLevel(context.world);
-            virtualBE.read(context.blockEntityData, null, false);
+            if (context.blockEntityData != null) {
+                virtualBE.read(context.blockEntityData, context.world != null ? context.world.registryAccess() : null, false);
+            }
             context.temporaryData = virtualBE;
+            float rpm = context.blockEntityData != null ? context.blockEntityData.getFloat("Speed") : 0f;
+            virtualBE.setContraptionSpeed(Math.abs(rpm));
         }
 
         if (!(context.temporaryData instanceof VirtualSentryArmBlockEntity virtualBE)) return;
 
         ItemStack heldItem = virtualBE.getHeldItem();
         boolean hasGun = !heldItem.isEmpty() && heldItem.getItem() instanceof IGun;
-        double speed = context.motion.length();
-        boolean isPowered = speed > 0.01;
 
-        if (!hasGun || !isPowered) {
+        if (!hasGun) {
             virtualBE.baseAngle.chase(0, 0.05f, LerpedFloat.Chaser.EXP);
             virtualBE.headAngle.chase(0, 0.05f, LerpedFloat.Chaser.EXP);
             virtualBE.lowerArmAngle.chase(135f, 0.05f, LerpedFloat.Chaser.EXP);
@@ -104,18 +114,32 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             return;
         }
 
-        AbstractContraptionEntity contraptionEntity = context.contraption.entity;
-        if (contraptionEntity == null) return;
+        AbstractContraptionEntity contraptionEntity = context.contraption != null ? context.contraption.entity : null;
 
-        Vec3 localPosCenter = VecHelper.getCenterOf(context.localPos);
-        Vec3 turretGlobalPos = contraptionEntity.toGlobalVector(localPosCenter, 1.0f);
-        virtualBE.setVirtualPos(BlockPos.containing(turretGlobalPos));
-        virtualBE.setVirtualLevel(context.world);
+        if (contraptionEntity != null) {
+            Vec3 localPosCenter = VecHelper.getCenterOf(context.localPos);
+            Vec3 turretGlobalPos = contraptionEntity.toGlobalVector(localPosCenter, 1.0f);
+            virtualBE.setVirtualPos(BlockPos.containing(turretGlobalPos));
+            virtualBE.setVirtualLevel(context.world);
 
-        if (context.world.isClientSide) {
-            tickClientLogic(context, virtualBE);
+            if (context.blockEntityData != null && context.blockEntityData.contains("Speed")) {
+                float rpm = context.blockEntityData.getFloat("Speed");
+                virtualBE.setContraptionSpeed(Math.abs(rpm));
+            } else {
+                double motionSpeed = context.motion.length();
+                float rpm = (float) (motionSpeed * 512.0);
+                virtualBE.setContraptionSpeed(Math.max(rpm, 16f));
+            }
+
+            if (context.world != null && context.world.isClientSide) {
+                tickClientLogic(context, virtualBE);
+            } else if (context.world != null) {
+                tickServerLogic(context);
+            }
         } else {
-            tickServerLogic(context);
+            if (context.world != null && context.world.isClientSide) {
+                tickIdleScan(context, virtualBE);
+            }
         }
 
         virtualBE.baseAngle.tickChaser();
@@ -130,13 +154,12 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         if (clientDelay > 0) clientDelay--;
         context.data.putFloat("ClientShootDelay", clientDelay);
 
-        AbstractContraptionEntity contraptionEntity = context.contraption.entity;
-        Vec3 localPosCenter = VecHelper.getCenterOf(context.localPos);
+        AbstractContraptionEntity contraptionEntity = context.contraption != null ? context.contraption.entity : null;
+        if (contraptionEntity == null) { tickIdleScan(context, virtualBE); return; }
 
+        Vec3 localPosCenter = VecHelper.getCenterOf(context.localPos);
         double yOffset = isCeiling(context) ? -2.0 : 2.0;
         Vec3 localMuzzlePos = localPosCenter.add(0, yOffset, 0);
-
-
         Vec3 accurateMuzzlePos = contraptionEntity.toGlobalVector(localMuzzlePos, 0.0F);
         Vec3 globalPos = contraptionEntity.toGlobalVector(localPosCenter, 0.0F);
 
@@ -216,14 +239,12 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             float serverDelay = context.data.getFloat("ShootDelay");
             if (serverDelay > 0) return;
 
-            Vec3 motionOffset = context.motion;
             Vec3 localPosCenter = VecHelper.getCenterOf(context.localPos);
             boolean isCeiling = context.state.hasProperty(SentryArmBlock.CEILING) && context.state.getValue(SentryArmBlock.CEILING);
 
             double yOffset = isCeiling ? -2.0 : 2.0;
             Vec3 localMuzzlePos = localPosCenter.add(0, yOffset, 0);
-
-            Vec3 accurateMuzzlePos = ace.toGlobalVector(localMuzzlePos, 1.0f).subtract(motionOffset).subtract(motionOffset).subtract(motionOffset).subtract(motionOffset).subtract(motionOffset);
+            Vec3 accurateMuzzlePos = ace.toGlobalVector(localMuzzlePos, 0.0f);
 
             ItemStack gunStack = virtualBE.getHeldItem();
             if (gunStack.isEmpty()) return;
@@ -508,10 +529,16 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     }
 
     private float getAnimationSpeed(MovementContext context, float baseChaserSpeed) {
-        double movementSpeed = context.motion.length();
-        float simulatedRpm = (float) (movementSpeed * 512.0);
-        simulatedRpm = Mth.clamp(simulatedRpm, 0f, 256f);
-        float multiplier = Mth.map(simulatedRpm, 1.0f, 256.0f, 0.01f, 1.0f);
+        VirtualSentryArmBlockEntity virtualBE = context.temporaryData instanceof VirtualSentryArmBlockEntity v ? v : null;
+        float rpm = virtualBE != null ? virtualBE.getContraptionSpeed() : 0f;
+
+        if (rpm <= 0) {
+            double movementSpeed = context.motion.length();
+            rpm = (float) (movementSpeed * 512.0);
+        }
+
+        rpm = Mth.clamp(rpm, 1f, 256f);
+        float multiplier = Mth.map(rpm, 1.0f, 256.0f, 0.1f, 1.0f);
         return baseChaserSpeed * multiplier;
     }
 
@@ -627,14 +654,14 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     @Override
     public void stopMoving(MovementContext context) {
         if (context.temporaryData instanceof VirtualSentryArmBlockEntity virtualBE) {
-            virtualBE.write(context.blockEntityData, null, false);
+            virtualBE.write(context.blockEntityData, context.world != null ? context.world.registryAccess() : null, false);
         }
     }
 
     @Override
     public void writeExtraData(MovementContext context) {
         if (context.temporaryData instanceof VirtualSentryArmBlockEntity virtualBE) {
-            virtualBE.write(context.blockEntityData, null, false);
+            virtualBE.write(context.blockEntityData, context.world != null ? context.world.registryAccess() : null, false);
         }
     }
 }

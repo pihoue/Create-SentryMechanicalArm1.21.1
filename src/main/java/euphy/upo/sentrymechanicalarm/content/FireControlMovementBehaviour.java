@@ -58,8 +58,6 @@ public class FireControlMovementBehaviour implements MovementBehaviour {
         FireControlData data = getOrInitData(context);
         refreshLogicData(context, data);
         if (context.world.isClientSide) {
-            refreshLogicData(context, data);
-
             float target = getTargetAngle(context);
 
             data.headAngle.chase(
@@ -69,20 +67,13 @@ public class FireControlMovementBehaviour implements MovementBehaviour {
             );
 
             data.headAngle.tickChaser();
-        } else {
         }
     }
 
     public static FireControlData getOrInitData(MovementContext context) {
         if (!(context.temporaryData instanceof FireControlData)) {
-            float initialAngle = 0f;
-            if (context.world.isClientSide) {
-                initialAngle = getTargetAngle(context);
-            }
-
-            FireControlData newData = new FireControlData(initialAngle);
+            FireControlData newData = new FireControlData(0f);
             refreshLogicData(context, newData);
-
             context.temporaryData = newData;
         }
         return (FireControlData) context.temporaryData;

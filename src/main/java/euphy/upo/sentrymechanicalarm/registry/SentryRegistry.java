@@ -1,5 +1,6 @@
 package euphy.upo.sentrymechanicalarm.registry;
 
+import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.api.stress.BlockStressValues;
 import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
 import euphy.upo.sentrymechanicalarm.content.*;
@@ -99,6 +100,11 @@ public class SentryRegistry {
     public static void registerAllStressValues() {
         double stressImpact = 3.0;
         BlockStressValues.IMPACTS.register(SENTRY_ARM_BLOCK.get(), () -> stressImpact);
+    }
+
+    public static void registerMovementBehaviours() {
+        MovementBehaviour.REGISTRY.register(SENTRY_ARM_BLOCK.get(), new SentryMovementBehaviour());
+        MovementBehaviour.REGISTRY.register(BLAZE_FIRE_CONTROL.get(), new FireControlMovementBehaviour());
     }
 
 }

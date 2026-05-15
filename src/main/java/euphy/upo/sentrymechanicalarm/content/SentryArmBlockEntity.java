@@ -1547,18 +1547,17 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
     protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         super.read(compound, registries, clientPacket);
 
-
-        if (compound.contains("SentryHeldItem")) {
-            heldItem = ItemStack.parseOptional(registries, compound.getCompound("SentryHeldItem"));
-        } else {
-            heldItem = ItemStack.EMPTY;
-        }
-
-        for (int i = 0; i < attachedAmmoBoxes.size(); i++) {
-            attachedAmmoBoxes.set(i, ItemStack.EMPTY);
-        }
-        if (compound.contains("SentryAmmoBoxes")) {
-            ContainerHelper.loadAllItems(compound.getCompound("SentryAmmoBoxes"), this.attachedAmmoBoxes, registries);
+        heldItem = ItemStack.EMPTY;
+        if (registries != null) {
+            if (compound.contains("SentryHeldItem")) {
+                heldItem = ItemStack.parseOptional(registries, compound.getCompound("SentryHeldItem"));
+            }
+            for (int i = 0; i < attachedAmmoBoxes.size(); i++) {
+                attachedAmmoBoxes.set(i, ItemStack.EMPTY);
+            }
+            if (compound.contains("SentryAmmoBoxes")) {
+                ContainerHelper.loadAllItems(compound.getCompound("SentryAmmoBoxes"), this.attachedAmmoBoxes, registries);
+            }
         }
 
         if (compound.contains("TargetId")) {
@@ -1620,12 +1619,14 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
     protected void write(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
         super.write(compound, registries, clientPacket);
 
-        if (!heldItem.isEmpty()) {
-            compound.put("SentryHeldItem", heldItem.save(registries, new CompoundTag()));
+        if (registries != null) {
+            if (!heldItem.isEmpty()) {
+                compound.put("SentryHeldItem", heldItem.save(registries, new CompoundTag()));
+            }
+            CompoundTag ammoTag = new CompoundTag();
+            ContainerHelper.saveAllItems(ammoTag, this.attachedAmmoBoxes, registries);
+            compound.put("SentryAmmoBoxes", ammoTag);
         }
-        CompoundTag ammoTag = new CompoundTag();
-        ContainerHelper.saveAllItems(ammoTag, this.attachedAmmoBoxes, registries);
-        compound.put("SentryAmmoBoxes", ammoTag);
         compound.putInt("TargetId", this.syncedTargetId);
         CompoundTag angles = new CompoundTag();
         angles.putFloat("Base", baseAngle.getValue());
