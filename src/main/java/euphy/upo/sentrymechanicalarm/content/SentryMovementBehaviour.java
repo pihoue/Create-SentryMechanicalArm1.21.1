@@ -17,6 +17,7 @@ import com.tacz.guns.resource.pojo.data.gun.BulletData;
 import com.tacz.guns.resource.pojo.data.gun.ExtraDamage;
 import com.tacz.guns.resource.pojo.data.gun.GunData;
 import com.tacz.guns.resource.pojo.data.gun.InaccuracyType;
+import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
 import euphy.upo.sentrymechanicalarm.network.NetworkHandler;
 import euphy.upo.sentrymechanicalarm.network.SentryClientShootPacket;
 import euphy.upo.sentrymechanicalarm.network.SentryContraptionShootPacket;
@@ -97,7 +98,10 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             virtualBE.setContraptionSpeed(Math.abs(rpm));
         }
 
-        if (!(context.temporaryData instanceof VirtualSentryArmBlockEntity virtualBE)) return;
+        if (!(context.temporaryData instanceof VirtualSentryArmBlockEntity virtualBE)) {
+            SentryMechanicalArm.LOGGER.debug("[SMB] tick: temporaryData is not VirtualSentryArmBlockEntity");
+            return;
+        }
 
         ItemStack heldItem = virtualBE.getHeldItem();
         boolean hasGun = !heldItem.isEmpty() && heldItem.getItem() instanceof IGun;
@@ -121,6 +125,16 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             Vec3 turretGlobalPos = contraptionEntity.toGlobalVector(localPosCenter, 1.0f);
             virtualBE.setVirtualPos(BlockPos.containing(turretGlobalPos));
             virtualBE.setVirtualLevel(context.world);
+
+            int tick = context.data.getInt("_DebugTick");
+            tick++;
+            context.data.putInt("_DebugTick", tick);
+            if (tick % 20 == 0) {
+            SentryMechanicalArm.LOGGER.info("[SMB] tick: localPos={}, globalPos={}, entity={}, world={}",
+                context.localPos, turretGlobalPos,
+                contraptionEntity.getClass().getSimpleName(),
+                context.world != null ? context.world.isClientSide : "null");
+            }
 
             if (context.blockEntityData != null && context.blockEntityData.contains("Speed")) {
                 float rpm = context.blockEntityData.getFloat("Speed");
@@ -174,7 +188,13 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             localViewVec = Vec3.directionFromRotation(-currentLocalPitch, -currentLocalYaw - 180);
         }
 
-        TargetResult result = scanForTarget(context, virtualBE, contraptionEntity, globalPos, accurateMuzzlePos, null);
+        TargetResult result = scanForTarget(context, virtualBE, contraptionEntity, globalPos, accurateMuzzlePos, contraptionEntity);
+
+        int tick = context.data.getInt("_DebugTick");
+        if (tick % 40 == 0) {
+            SentryMechanicalArm.LOGGER.info("[SMB] scan: muzzle={}, globalPos={}, result={}",
+                accurateMuzzlePos, globalPos, result != null ? result.entity().getType().getDescriptionId() : "null");
+        }
 
         if (result != null) {
 
@@ -239,6 +259,10 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             float serverDelay = context.data.getFloat("ShootDelay");
             if (serverDelay > 0) return;
 
+            SentryMechanicalArm.LOGGER.debug("[SMB] handleShoot: entity={}, localPos={}, yaw={}, pitch={}, dist={}",
+                ace != null ? ace.getClass().getSimpleName() : "null",
+                context.localPos, yaw, pitch, distance);
+
             Vec3 localPosCenter = VecHelper.getCenterOf(context.localPos);
             boolean isCeiling = context.state.hasProperty(SentryArmBlock.CEILING) && context.state.getValue(SentryArmBlock.CEILING);
 
@@ -268,7 +292,11 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
     private boolean fireGunInContraption(MovementContext context, VirtualSentryArmBlockEntity virtualBE,
                                          ItemStack gunStack, Vec3 barrelGlobalPos, float globalYaw, float globalPitch, double distToTarget) {
-        if (!(context.world instanceof ServerLevel serverLevel)) return false;
+        if (!(context.world instanceof ServerLevel serverLevel)) {
+            SentryMechanicalArm.LOGGER.debug("[SMB] fireGun: world not ServerLevel, world={}",
+                context.world != null ? context.world.getClass().getSimpleName() : "null");
+            return false;
+        }
 
         IGun iGun = (IGun) gunStack.getItem();
         ResourceLocation gunId = iGun.getGunId(gunStack);
@@ -557,6 +585,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     }
 
     private boolean isPointVisible(Level level, Vec3 start, Vec3 end, Entity shooter) {
+        if (shooter == null) return true;
         net.minecraft.world.phys.BlockHitResult result = level.clip(new net.minecraft.world.level.ClipContext(
                 start, end,
                 net.minecraft.world.level.ClipContext.Block.COLLIDER,

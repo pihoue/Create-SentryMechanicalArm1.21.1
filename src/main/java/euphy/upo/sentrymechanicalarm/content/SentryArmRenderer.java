@@ -663,7 +663,7 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
                 renderHeldItem(buffer, renderWorld, virtualBE, light, clawTipWorldMatrix, context);
             }
         } catch (Exception e) {
-            SentryMechanicalArm.LOGGER.error("renderInContraption failed", e);
+            SentryMechanicalArm.LOGGER.debug("[render] renderInContraption failed: {}", e.getMessage());
         } finally {
             ms.popPose();
         }
