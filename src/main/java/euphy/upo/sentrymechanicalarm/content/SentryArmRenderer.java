@@ -712,30 +712,14 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
         Vector4f worldPos = new Vector4f(0, 0, 0, 1);
         finalMatrix.transform(worldPos);
 
-        Quaternionf worldRot = new Quaternionf();
-        finalMatrix.getUnnormalizedRotation(worldRot);
-
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         Vec3 cameraPos = camera.getPosition();
 
-        double renderX = worldPos.x() - cameraPos.x;
-        double renderY = worldPos.y() - cameraPos.y;
-        double renderZ = worldPos.z() - cameraPos.z;
- 
-        Vector4f viewDelta = new Vector4f((float)renderX, (float)renderY, (float)renderZ, 1.0f);
-        Matrix4f cameraRotMat = new Matrix4f();
-        cameraRotMat.rotate(Axis.XP.rotationDegrees(camera.getXRot()));
-        cameraRotMat.rotate(Axis.YP.rotationDegrees(camera.getYRot() + 180.0F));
-        cameraRotMat.transform(viewDelta);
-
         PoseStack viewStack = new PoseStack();
-        viewStack.translate(viewDelta.x(), viewDelta.y(), viewDelta.z());
-
- 
-        Quaternionf cameraInverseRot = new Quaternionf();
-        cameraRotMat.getUnnormalizedRotation(cameraInverseRot);
-        cameraInverseRot.mul(worldRot);
-        viewStack.mulPose(cameraInverseRot);
+        viewStack.translate(worldPos.x() - cameraPos.x, worldPos.y() - cameraPos.y, worldPos.z() - cameraPos.z);
+        Quaternionf worldRot = new Quaternionf();
+        finalMatrix.getUnnormalizedRotation(worldRot);
+        viewStack.mulPose(worldRot);
 
  
         if (isGun) {

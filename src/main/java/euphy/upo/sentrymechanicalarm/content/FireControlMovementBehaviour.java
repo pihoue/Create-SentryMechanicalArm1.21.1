@@ -33,6 +33,7 @@ public class FireControlMovementBehaviour implements MovementBehaviour {
         public boolean isWhitelist = false;
         public ItemStack displayItem = ItemStack.EMPTY;
         public final LerpedFloat headAngle;
+        public int refreshTick;
 
         public FireControlData(float initialAngle) {
             this.headAngle = LerpedFloat.angular().startWithValue(initialAngle);
@@ -56,7 +57,11 @@ public class FireControlMovementBehaviour implements MovementBehaviour {
     @Override
     public void tick(MovementContext context) {
         FireControlData data = getOrInitData(context);
-        refreshLogicData(context, data);
+        data.refreshTick = context.data.getBoolean("_invDirty") ? 0 : (data.refreshTick + 1);
+        if (data.refreshTick % 20 == 0) {
+            context.data.putBoolean("_invDirty", false);
+            refreshLogicData(context, data);
+        }
         if (context.world.isClientSide) {
             float target = getTargetAngle(context);
 

@@ -2,6 +2,7 @@ package euphy.upo.sentrymechanicalarm.content;
 
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
+
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.simibubi.create.content.contraptions.render.ContraptionMatrices;
@@ -17,7 +18,6 @@ import com.tacz.guns.resource.pojo.data.gun.BulletData;
 import com.tacz.guns.resource.pojo.data.gun.ExtraDamage;
 import com.tacz.guns.resource.pojo.data.gun.GunData;
 import com.tacz.guns.resource.pojo.data.gun.InaccuracyType;
-import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
 import euphy.upo.sentrymechanicalarm.network.NetworkHandler;
 import euphy.upo.sentrymechanicalarm.network.SentryClientShootPacket;
 import euphy.upo.sentrymechanicalarm.network.SentryContraptionShootPacket;
@@ -99,12 +99,13 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         }
 
         if (!(context.temporaryData instanceof VirtualSentryArmBlockEntity virtualBE)) {
-            SentryMechanicalArm.LOGGER.debug("[SMB] tick: temporaryData is not VirtualSentryArmBlockEntity");
             return;
         }
 
         ItemStack heldItem = virtualBE.getHeldItem();
         boolean hasGun = !heldItem.isEmpty() && heldItem.getItem() instanceof IGun;
+
+
 
         if (!hasGun) {
             virtualBE.baseAngle.chase(0, 0.05f, LerpedFloat.Chaser.EXP);
@@ -125,16 +126,6 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             Vec3 turretGlobalPos = contraptionEntity.toGlobalVector(localPosCenter, 1.0f);
             virtualBE.setVirtualPos(BlockPos.containing(turretGlobalPos));
             virtualBE.setVirtualLevel(context.world);
-
-            int tick = context.data.getInt("_DebugTick");
-            tick++;
-            context.data.putInt("_DebugTick", tick);
-            if (tick % 20 == 0) {
-            SentryMechanicalArm.LOGGER.info("[SMB] tick: localPos={}, globalPos={}, entity={}, world={}",
-                context.localPos, turretGlobalPos,
-                contraptionEntity.getClass().getSimpleName(),
-                context.world != null ? context.world.isClientSide : "null");
-            }
 
             if (context.blockEntityData != null && context.blockEntityData.contains("Speed")) {
                 float rpm = context.blockEntityData.getFloat("Speed");
@@ -182,7 +173,6 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
         Vec3 localViewVec;
         if (isCeiling(context)) {
-
             localViewVec = Vec3.directionFromRotation(currentLocalPitch, currentLocalYaw);
         } else {
             localViewVec = Vec3.directionFromRotation(-currentLocalPitch, -currentLocalYaw - 180);
@@ -190,19 +180,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
         TargetResult result = scanForTarget(context, virtualBE, contraptionEntity, globalPos, accurateMuzzlePos, contraptionEntity);
 
-        int tick = context.data.getInt("_DebugTick");
-        if (tick % 40 == 0) {
-            SentryMechanicalArm.LOGGER.info("[SMB] scan: muzzle={}, globalPos={}, result={}",
-                accurateMuzzlePos, globalPos, result != null ? result.entity().getType().getDescriptionId() : "null");
-        }
-
         if (result != null) {
-
-            //Vec3 targetPos = result.aimPos();
-            //Vec3 actualVec = contraptionEntity.toGlobalVector(localMuzzlePos.add(localViewVec), 0.0F).subtract(accurateMuzzlePos).normalize();
-            //spawnDebugLine(context.world, accurateMuzzlePos, accurateMuzzlePos.add(actualVec.scale(10)), new org.joml.Vector3f(0f, 1f, 0f));
-            //spawnDebugLine(context.world, accurateMuzzlePos, targetPos, new org.joml.Vector3f(0f, 0f, 1f));
-
             Vec3 targetGlobal = result.aimPos();
             Vec3 worldAimVec = targetGlobal.subtract(accurateMuzzlePos);
 
@@ -226,21 +204,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
             boolean isDeployed = virtualBE.upperArmAngle.getValue() > 45f;
 
-            if (tick % 10 == 0) {
-                double armUpper = virtualBE.upperArmAngle.getValue();
-                SentryMechanicalArm.LOGGER.info("[SMB] aim: tYaw={}, tPitch={}, cYaw={}, cPitch={}, dev={}, deployed={}, upperArm={}",
-                    Math.round(targetYaw), Math.round(targetPitch),
-                    Math.round(currentLocalYaw), Math.round(currentLocalPitch),
-                    Math.round(totalDeviation * 100.0) / 100.0, isDeployed,
-                    Math.round(armUpper * 10.0) / 10.0);
-            }
-
             boolean readyToShoot = totalDeviation < 6.0 && isDeployed && clientDelay <= 0;
-
-            if (tick % 5 == 0 && result != null) {
-                SentryMechanicalArm.LOGGER.info("[SMB] shootCheck: dev<6={}, deployed={}, delay<={}={}, ready={}",
-                    totalDeviation < 6.0, isDeployed, clientDelay, clientDelay <= 0, readyToShoot);
-            }
 
             if (readyToShoot) {
                 double dist = Math.sqrt(targetGlobal.distanceToSqr(accurateMuzzlePos));
@@ -285,8 +249,6 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     public static void handleClientShootPacket(MovementContext context, AbstractContraptionEntity ace, float yaw, float pitch, double distance) {
         if (context.temporaryData instanceof VirtualSentryArmBlockEntity virtualBE) {
             float serverDelay = context.data.getFloat("ShootDelay");
-            SentryMechanicalArm.LOGGER.info("[SMB] handleShoot: delay={}, hasGun={}, localPos={}, yaw={}, pitch={}",
-                serverDelay, !virtualBE.getHeldItem().isEmpty(), context.localPos, yaw, pitch);
             if (serverDelay > 0) return;
 
             Vec3 localPosCenter = VecHelper.getCenterOf(context.localPos);
@@ -301,11 +263,6 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
             SentryMovementBehaviour behavior = new SentryMovementBehaviour();
             boolean fired = behavior.fireGunInContraption(context, virtualBE, gunStack, accurateMuzzlePos, yaw, pitch, distance);
-            int ammoCount = -1;
-            if (gunStack.getItem() instanceof IGun) {
-                try { ammoCount = ((IGun) gunStack.getItem()).getCurrentAmmoCount(gunStack); } catch (Exception ignored) {}
-            }
-            SentryMechanicalArm.LOGGER.info("[SMB] fireResult: fired={}, ammo={}, barrelPos={}", fired, ammoCount, accurateMuzzlePos);
 
             if (fired) {
                 float rpm = 600f;
@@ -324,8 +281,6 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     private boolean fireGunInContraption(MovementContext context, VirtualSentryArmBlockEntity virtualBE,
                                          ItemStack gunStack, Vec3 barrelGlobalPos, float globalYaw, float globalPitch, double distToTarget) {
         if (!(context.world instanceof ServerLevel serverLevel)) {
-            SentryMechanicalArm.LOGGER.debug("[SMB] fireGun: world not ServerLevel, world={}",
-                context.world != null ? context.world.getClass().getSimpleName() : "null");
             return false;
         }
 
@@ -545,8 +500,11 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
         Class<? extends LivingEntity> targetClass = fireControlActive ? LivingEntity.class : Monster.class;
 
+        Level world = context.world;
+        if (world == null && contraptionEntity != null) world = contraptionEntity.level();
+
         AABB searchBox = new AABB(globalPos, globalPos).inflate(range);
-        List<? extends LivingEntity> entities = context.world.getEntitiesOfClass(targetClass, searchBox);
+        List<? extends LivingEntity> entities = world.getEntitiesOfClass(targetClass, searchBox);
 
         LivingEntity bestEntity = null;
         Vec3 bestPos = null;
@@ -557,7 +515,6 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             if (enemy.isSpectator()) continue;
             if (enemy.is(contraptionEntity)) continue;
             if (enemy == shooter) continue;
-            //if (enemy instanceof Player p && p.isCreative()) continue;
 
             if (!isValidTarget(enemy, fcData)) continue;
 
@@ -681,7 +638,9 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     }
 
     private boolean isPointVisible(Level level, Vec3 start, Vec3 end, Entity shooter) {
-        if (shooter == null) return true;
+        if (shooter instanceof AbstractContraptionEntity) {
+            return true;
+        }
         net.minecraft.world.phys.BlockHitResult result = level.clip(new net.minecraft.world.level.ClipContext(
                 start, end,
                 net.minecraft.world.level.ClipContext.Block.COLLIDER,
