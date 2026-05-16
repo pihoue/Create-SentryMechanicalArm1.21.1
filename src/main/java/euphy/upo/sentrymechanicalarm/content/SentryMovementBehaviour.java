@@ -607,6 +607,8 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
         Level world = context.world;
         if (world == null && contraptionEntity != null) world = contraptionEntity.level();
+        if (world == null) return null;
+        if (contraptionEntity != null) world = contraptionEntity.level();
 
         AABB searchBox = new AABB(globalPos, globalPos).inflate(range);
         List<? extends LivingEntity> entities = world.getEntitiesOfClass(targetClass, searchBox);
