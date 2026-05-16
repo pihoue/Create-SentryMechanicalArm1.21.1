@@ -155,7 +155,12 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             }
 
             if (context.world != null && context.world.isClientSide) {
-                tickClientLogic(context, virtualBE);
+                int clientTick = context.data.getInt("_ClientTick");
+                clientTick++;
+                context.data.putInt("_ClientTick", clientTick);
+                if (clientTick % 3 == 0) {
+                    tickClientLogic(context, virtualBE);
+                }
             } else if (context.world != null) {
                 tickServerLogic(context);
             }
@@ -754,16 +759,18 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     }
 
     private boolean isPointVisible(Level level, Vec3 start, Vec3 end, Entity shooter) {
-        if (shooter instanceof AbstractContraptionEntity) {
-            return true;
-        }
         net.minecraft.world.phys.BlockHitResult result = level.clip(new net.minecraft.world.level.ClipContext(
                 start, end,
                 net.minecraft.world.level.ClipContext.Block.COLLIDER,
                 net.minecraft.world.level.ClipContext.Fluid.NONE,
                 shooter
         ));
-        return result.getType() == net.minecraft.world.phys.HitResult.Type.MISS;
+        if (result.getType() == net.minecraft.world.phys.HitResult.Type.MISS) return true;
+        if (shooter instanceof AbstractContraptionEntity contraption && contraption.getContraption() != null) {
+            BlockPos hitPos = result.getBlockPos();
+            return contraption.getContraption().getBlocks().containsKey(hitPos);
+        }
+        return false;
     }
 
     private double calculateContraptionRange(MovementContext context, VirtualSentryArmBlockEntity virtualBE) {
