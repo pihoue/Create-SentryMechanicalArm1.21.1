@@ -761,7 +761,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             net.minecraft.nbt.CompoundTag scrollTag = context.blockEntityData.getCompound("ScrollValue");
             if (scrollTag.contains("Value")) {
                 int savedRange = scrollTag.getInt("Value");
-                if (savedRange > 1) base = savedRange;
+                if (savedRange > 1 && savedRange > base) base = savedRange;
             }
         }
         return base;
