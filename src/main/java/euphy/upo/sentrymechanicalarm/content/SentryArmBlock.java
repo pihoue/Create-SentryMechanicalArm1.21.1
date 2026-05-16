@@ -2,6 +2,7 @@ package euphy.upo.sentrymechanicalarm.content;
 
 import com.simibubi.create.AllShapes;
 import com.simibubi.create.content.kinetics.base.KineticBlock;
+import com.simibubi.create.content.kinetics.simpleRelays.ICogWheel;
 import com.simibubi.create.foundation.block.IBE;
 import euphy.upo.sentrymechanicalarm.registry.SentryRegistry;
 import net.minecraft.core.BlockPos;
@@ -26,7 +27,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class SentryArmBlock extends KineticBlock implements IBE<SentryArmBlockEntity> {
+public class SentryArmBlock extends KineticBlock implements IBE<SentryArmBlockEntity>, ICogWheel {
 
     public static final BooleanProperty CEILING = BooleanProperty.create("ceiling");
     public static final IntegerProperty COLOR_TYPE = IntegerProperty.create("color_type", 0, 16);
@@ -76,11 +77,11 @@ public class SentryArmBlock extends KineticBlock implements IBE<SentryArmBlockEn
 
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
- 
-        if (state.getBlock() != newState.getBlock()) {
+
+        if (!isMoving && state.getBlock() != newState.getBlock()) {
             SentryArmBlockEntity sentry = this.getBlockEntity(level, pos);
             if (sentry != null) {
- 
+
                 ItemStack gun = sentry.getHeldItem();
                 if (!gun.isEmpty()) {
                     Block.popResource(level, pos, gun);
@@ -91,8 +92,8 @@ public class SentryArmBlock extends KineticBlock implements IBE<SentryArmBlockEn
                     }
                 }
             }
-            super.onRemove(state, level, pos, newState, isMoving);
         }
+        super.onRemove(state, level, pos, newState, isMoving);
     }
 
     @Override
