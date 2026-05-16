@@ -173,6 +173,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     }
 
     private void tickClientLogic(MovementContext context, VirtualSentryArmBlockEntity virtualBE) {
+        euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[TICK] tickClientLogic called");
         float clientDelay = context.data.contains("ClientShootDelay") ? context.data.getFloat("ClientShootDelay") : 0;
         if (clientDelay > 0) clientDelay--;
         context.data.putFloat("ClientShootDelay", clientDelay);
@@ -189,33 +190,33 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         float currentLocalYaw = virtualBE.baseAngle.getValue();
         float currentLocalPitch = virtualBE.headAngle.getValue();
 
-        Vec3 worldFwd;
+        Vec3 localViewVec;
         if (isCeiling(context)) {
-            worldFwd = contraptionEntity.toGlobalVector(Vec3.directionFromRotation(currentLocalPitch, currentLocalYaw), 0.0F)
-                .subtract(contraptionEntity.toGlobalVector(Vec3.ZERO, 0.0F));
+            localViewVec = Vec3.directionFromRotation(currentLocalPitch, currentLocalYaw);
         } else {
-            worldFwd = contraptionEntity.toGlobalVector(Vec3.directionFromRotation(-currentLocalPitch, -currentLocalYaw - 180), 0.0F)
-                .subtract(contraptionEntity.toGlobalVector(Vec3.ZERO, 0.0F));
+            localViewVec = Vec3.directionFromRotation(-currentLocalPitch, -currentLocalYaw - 180);
         }
-        worldFwd = worldFwd.normalize();
 
         TargetResult result = scanForTarget(context, virtualBE, contraptionEntity, globalPos, accurateMuzzlePos, contraptionEntity);
 
         if (result != null) {
             Vec3 targetGlobal = result.aimPos();
+            Vec3 worldAimVec = targetGlobal.subtract(accurateMuzzlePos);
 
-            double diffX = targetGlobal.x - accurateMuzzlePos.x;
-            double diffY = targetGlobal.y - accurateMuzzlePos.y;
-            double diffZ = targetGlobal.z - accurateMuzzlePos.z;
-            float targetYaw = (float) (Mth.atan2(diffZ, diffX) * (180D / Math.PI)) - 90.0F;
-            double hDist = Math.sqrt(diffX * diffX + diffZ * diffZ);
-            float targetPitch = (float) -(Mth.atan2(diffY, hDist) * (180D / Math.PI));
+            Vec3 targetVecLocal = contraptionEntity.reverseRotation(worldAimVec, 0.0F);
+
+            double yawRad = Mth.atan2(targetVecLocal.x, targetVecLocal.z);
+            float targetYaw = (float) Math.toDegrees(yawRad) + 180;
+
+            double horizontalDist = Math.sqrt(targetVecLocal.x * targetVecLocal.x + targetVecLocal.z * targetVecLocal.z);
+            double pitchRad = Mth.atan2(targetVecLocal.y, horizontalDist);
+            float targetPitch = (float) Math.toDegrees(pitchRad);
 
             aimAtAngle(context, virtualBE, targetYaw, targetPitch);
 
-            Vec3 targetDir = new Vec3(diffX, diffY, diffZ).normalize();
+            Vec3 targetDir = targetVecLocal.normalize();
 
-            double dot = worldFwd.dot(targetDir);
+            double dot = localViewVec.dot(targetDir);
             dot = Mth.clamp(dot, -1.0, 1.0);
 
             double totalDeviation = Math.toDegrees(Math.acos(dot));
@@ -227,10 +228,10 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             if (readyToShoot) {
                 double dist = Math.sqrt(targetGlobal.distanceToSqr(accurateMuzzlePos));
 
-                double gYawRad = Mth.atan2(diffZ, diffX) - (Math.PI / 2.0);
+                double gYawRad = Mth.atan2(worldAimVec.z, worldAimVec.x) - (Math.PI / 2.0);
                 float packetYaw = (float) Math.toDegrees(gYawRad);
 
-                double gPitchRad = Mth.atan2(diffY, hDist);
+                double gPitchRad = Mth.atan2(worldAimVec.y, horizontalDist);
                 float packetPitch = (float) -Math.toDegrees(gPitchRad);
 
                 PacketDistributor.sendToServer(new SentryClientShootPacket(
@@ -598,6 +599,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     private TargetResult scanForTarget(MovementContext context, VirtualSentryArmBlockEntity virtualBE,
                                        AbstractContraptionEntity contraptionEntity,
                                        Vec3 globalPos, Vec3 muzzlePos, Entity shooter) {
+        euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[TICK] scanForTarget called");
         double range = calculateContraptionRange(context, virtualBE);
         FireControlMovementBehaviour.FireControlData fcData = FireControlMovementBehaviour.findFireControl(context.contraption);
 
@@ -623,16 +625,31 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             if (enemy.is(contraptionEntity)) continue;
             if (enemy == shooter) continue;
 
-            if (!isValidTarget(enemy, fcData)) continue;
+            if (!isValidTarget(enemy, fcData)) {
+                if (enemy.getType() == net.minecraft.world.entity.EntityType.PHANTOM) {
+                    euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[PHANTOM] phantom rejected by isValidTarget");
+                }
+                continue;
+            }
 
             double distSq = enemy.distanceToSqr(globalPos);
-            if (distSq > minDstSq) continue;
+            if (distSq > minDstSq) {
+                if (enemy.getType() == net.minecraft.world.entity.EntityType.PHANTOM) {
+                    euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[PHANTOM] phantom too far: distSq={} > max={}", distSq, minDstSq);
+                }
+                continue;
+            }
 
             Vec3 hitPos = getBestTargetPos(context.world, enemy, muzzlePos, shooter);
             if (hitPos != null) {
+                if (enemy.getType() == net.minecraft.world.entity.EntityType.PHANTOM) {
+                    euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[PHANTOM] found phantom! distSq={}, hitPos={}", distSq, hitPos);
+                }
                 minDstSq = distSq;
                 bestEntity = enemy;
                 bestPos = hitPos;
+            } else if (enemy.getType() == net.minecraft.world.entity.EntityType.PHANTOM) {
+                euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[PHANTOM] phantom getBestTargetPos returned null");
             }
         }
 
