@@ -189,33 +189,33 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         float currentLocalYaw = virtualBE.baseAngle.getValue();
         float currentLocalPitch = virtualBE.headAngle.getValue();
 
-        Vec3 localViewVec;
+        Vec3 worldFwd;
         if (isCeiling(context)) {
-            localViewVec = Vec3.directionFromRotation(currentLocalPitch, currentLocalYaw);
+            worldFwd = contraptionEntity.toGlobalVector(Vec3.directionFromRotation(currentLocalPitch, currentLocalYaw), 0.0F)
+                .subtract(contraptionEntity.toGlobalVector(Vec3.ZERO, 0.0F));
         } else {
-            localViewVec = Vec3.directionFromRotation(-currentLocalPitch, -currentLocalYaw - 180);
+            worldFwd = contraptionEntity.toGlobalVector(Vec3.directionFromRotation(-currentLocalPitch, -currentLocalYaw - 180), 0.0F)
+                .subtract(contraptionEntity.toGlobalVector(Vec3.ZERO, 0.0F));
         }
+        worldFwd = worldFwd.normalize();
 
         TargetResult result = scanForTarget(context, virtualBE, contraptionEntity, globalPos, accurateMuzzlePos, contraptionEntity);
 
         if (result != null) {
             Vec3 targetGlobal = result.aimPos();
-            Vec3 worldAimVec = targetGlobal.subtract(accurateMuzzlePos);
 
-            Vec3 targetVecLocal = contraptionEntity.reverseRotation(worldAimVec, 0.0F);
-
-            double yawRad = Mth.atan2(targetVecLocal.x, targetVecLocal.z);
-            float targetYaw = (float) Math.toDegrees(yawRad) + 180;
-
-            double horizontalDist = Math.sqrt(targetVecLocal.x * targetVecLocal.x + targetVecLocal.z * targetVecLocal.z);
-            double pitchRad = Mth.atan2(targetVecLocal.y, horizontalDist);
-            float targetPitch = (float) Math.toDegrees(pitchRad);
+            double diffX = targetGlobal.x - accurateMuzzlePos.x;
+            double diffY = targetGlobal.y - accurateMuzzlePos.y;
+            double diffZ = targetGlobal.z - accurateMuzzlePos.z;
+            float targetYaw = (float) (Mth.atan2(diffZ, diffX) * (180D / Math.PI)) - 90.0F;
+            double hDist = Math.sqrt(diffX * diffX + diffZ * diffZ);
+            float targetPitch = (float) -(Mth.atan2(diffY, hDist) * (180D / Math.PI));
 
             aimAtAngle(context, virtualBE, targetYaw, targetPitch);
 
-            Vec3 targetDir = targetVecLocal.normalize();
+            Vec3 targetDir = new Vec3(diffX, diffY, diffZ).normalize();
 
-            double dot = localViewVec.dot(targetDir);
+            double dot = worldFwd.dot(targetDir);
             dot = Mth.clamp(dot, -1.0, 1.0);
 
             double totalDeviation = Math.toDegrees(Math.acos(dot));
@@ -227,10 +227,10 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             if (readyToShoot) {
                 double dist = Math.sqrt(targetGlobal.distanceToSqr(accurateMuzzlePos));
 
-                double gYawRad = Mth.atan2(worldAimVec.z, worldAimVec.x) - (Math.PI / 2.0);
+                double gYawRad = Mth.atan2(diffZ, diffX) - (Math.PI / 2.0);
                 float packetYaw = (float) Math.toDegrees(gYawRad);
 
-                double gPitchRad = Mth.atan2(worldAimVec.y, horizontalDist);
+                double gPitchRad = Mth.atan2(diffY, hDist);
                 float packetPitch = (float) -Math.toDegrees(gPitchRad);
 
                 PacketDistributor.sendToServer(new SentryClientShootPacket(
