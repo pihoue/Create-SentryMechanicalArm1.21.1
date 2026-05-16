@@ -603,7 +603,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
         boolean fireControlActive = fcData != null && !fcData.displayItem.isEmpty();
 
-        Class<? extends LivingEntity> targetClass = fireControlActive ? LivingEntity.class : Monster.class;
+        Class<? extends LivingEntity> targetClass = LivingEntity.class;
 
         Level world = context.world;
         if (world == null && contraptionEntity != null) world = contraptionEntity.level();
