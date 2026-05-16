@@ -64,7 +64,6 @@ neoForge {
 
         register("client") {
             client()
-            systemProperty("mixin.env.allowInjections", "true")
         }
         register("server") {
             server()
