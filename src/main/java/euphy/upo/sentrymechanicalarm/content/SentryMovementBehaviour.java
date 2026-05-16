@@ -102,6 +102,24 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             return;
         }
 
+        int syncTick = context.data.getInt("_AmmoSync");
+        syncTick++;
+        context.data.putInt("_AmmoSync", syncTick);
+        if (syncTick % 20 == 0 && context.blockEntityData != null && context.blockEntityData.contains("SentryAmmoBoxes")) {
+            net.minecraft.core.NonNullList<ItemStack> tempList = net.minecraft.core.NonNullList.withSize(virtualBE.attachedAmmoBoxes.size(), ItemStack.EMPTY);
+            net.minecraft.world.ContainerHelper.loadAllItems(
+                context.blockEntityData.getCompound("SentryAmmoBoxes"),
+                tempList,
+                context.world != null ? context.world.registryAccess() : null);
+            boolean hasAny = false;
+            for (ItemStack s : tempList) { if (!s.isEmpty()) { hasAny = true; break; } }
+            if (hasAny) {
+                for (int i = 0; i < virtualBE.attachedAmmoBoxes.size(); i++) {
+                    virtualBE.attachedAmmoBoxes.set(i, tempList.get(i));
+                }
+            }
+        }
+
         ItemStack heldItem = virtualBE.getHeldItem();
         boolean hasGun = !heldItem.isEmpty() && heldItem.getItem() instanceof IGun;
 
@@ -204,7 +222,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
             boolean isDeployed = virtualBE.upperArmAngle.getValue() > 45f;
 
-            boolean readyToShoot = totalDeviation < 6.0 && isDeployed && clientDelay <= 0;
+            boolean readyToShoot = totalDeviation < 12.0 && isDeployed && clientDelay <= 0;
 
             if (readyToShoot) {
                 double dist = Math.sqrt(targetGlobal.distanceToSqr(accurateMuzzlePos));
@@ -294,6 +312,10 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         TimelessAPI.getCommonGunIndex(gunId).ifPresent(index -> ammoIdRef.set(index.getGunData().getAmmoId()));
         ResourceLocation requiredAmmoId = ammoIdRef.get();
 
+        if (requiredAmmoId != null) {
+            refillAmmoBoxesFromContraption(context, virtualBE, requiredAmmoId);
+        }
+
         boolean hasExternal = false;
         if (requiredAmmoId != null) {
             hasExternal = consumeAmmoFromContraption(context.contraption, gunStack, true);
@@ -368,24 +390,96 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             }
         }
 
-        if (result != ShootResult.SUCCESS && hasExternal) {
-            SentryFakePlayer.setTempCreative(fp, true);
-
-            try {
-                result = operator.shoot(() -> globalPitch, () -> globalYaw);
-            } catch (Exception ignored) {
-            } finally {
-                SentryFakePlayer.setTempCreative(fp, false);
-            }
-
-            if (result == ShootResult.SUCCESS) {
-                consumedExternal = true;
+        if (result != ShootResult.SUCCESS && hasExternal && requiredAmmoId != null) {
+            ItemStack fpGun = fp.getMainHandItem();
+            IGun iGunFp = IGun.getIGunOrNull(fpGun);
+            if (iGunFp != null) {
+                int fpAmmo = iGunFp.getCurrentAmmoCount(fpGun);
+                int maxAmmo = iGunFp.getMaxDummyAmmoAmount(fpGun);
+                if (maxAmmo <= 0) maxAmmo = 30;
+                int needed = maxAmmo - fpAmmo;
+                int totalFromBox = 0;
+                if (needed > 0) {
+                    for (ItemStack box : virtualBE.attachedAmmoBoxes) {
+                        if (needed <= 0) break;
+                        if (box.isEmpty() || !(box.getItem() instanceof com.tacz.guns.api.item.IAmmoBox iBox)) continue;
+                        if (iBox.isCreative(box) || iBox.isAllTypeCreative(box)) { fpAmmo = maxAmmo; needed = 0; break; }
+                        if (requiredAmmoId.equals(iBox.getAmmoId(box))) {
+                            int boxCount = iBox.getAmmoCount(box);
+                            int take = Math.min(needed, boxCount);
+                            totalFromBox += take;
+                            fpAmmo += take;
+                            needed -= take;
+                        }
+                    }
+                    if (needed > 0 && context.contraption != null && context.contraption.getStorage() != null) {
+                        net.neoforged.neoforge.items.IItemHandler inv = context.contraption.getStorage().getAllItems();
+                        if (inv != null) {
+                            for (int i = 0; i < inv.getSlots() && needed > 0; i++) {
+                                ItemStack slot = inv.getStackInSlot(i);
+                                if (slot.isEmpty()) continue;
+                                if (slot.getItem() instanceof com.tacz.guns.api.item.IAmmoBox iBox) {
+                                    if (requiredAmmoId.equals(iBox.getAmmoId(slot))) {
+                                        int boxCount = iBox.getAmmoCount(slot);
+                                        int take = Math.min(needed, boxCount);
+                                        totalFromBox += take;
+                                        fpAmmo += take;
+                                        needed -= take;
+                                    }
+                                } else if (slot.getItem() instanceof com.tacz.guns.api.item.IAmmo) {
+                                    if (requiredAmmoId.equals(((com.tacz.guns.api.item.IAmmo) slot.getItem()).getAmmoId(slot))) {
+                                        int taken = Math.min(needed, slot.getCount());
+                                        ItemStack extractedAmmo = inv.extractItem(i, taken, false);
+                                        if (!extractedAmmo.isEmpty()) {
+                                            fpAmmo += extractedAmmo.getCount();
+                                            needed -= extractedAmmo.getCount();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (fpAmmo > 0) {
+                    iGunFp.setCurrentAmmoCount(fpGun, fpAmmo);
+                    if (!iGunFp.hasBulletInBarrel(fpGun) && iGunFp.getCurrentAmmoCount(fpGun) > 0) {
+                        iGunFp.reduceCurrentAmmoCount(fpGun);
+                        iGunFp.setBulletInBarrel(fpGun, true);
+                    }
+                    try {
+                        fp.setGameMode(GameType.SURVIVAL);
+                        result = operator.shoot(() -> globalPitch, () -> globalYaw);
+                    } catch (Exception e) {}
+                    if (result == ShootResult.NEED_BOLT) {
+                        operator.bolt();
+                        try {
+                            result = operator.shoot(() -> globalPitch, () -> globalYaw);
+                        } catch (Exception e2) {}
+                    }
+                    if (result == ShootResult.SUCCESS) {
+                        consumedExternal = true;
+                        if (totalFromBox > 0) {
+                            for (ItemStack box : virtualBE.attachedAmmoBoxes) {
+                                if (totalFromBox <= 0) break;
+                                if (box.isEmpty() || !(box.getItem() instanceof com.tacz.guns.api.item.IAmmoBox iBox)) continue;
+                                if (requiredAmmoId.equals(iBox.getAmmoId(box))) {
+                                    int boxCount = iBox.getAmmoCount(box);
+                                    int consume = Math.min(totalFromBox, boxCount);
+                                    iBox.setAmmoCount(box, boxCount - consume);
+                                    totalFromBox -= consume;
+                                }
+                            }
+                        }
+                        int newAmmo = iGunFp.getCurrentAmmoCount(fpGun);
+                        iGun.setCurrentAmmoCount(gunStack, newAmmo);
+                    }
+                }
             }
         }
 
         if (result == ShootResult.SUCCESS) {
 
-            if (hasExternal) {
+            if (hasExternal && !consumedExternal) {
                 if (!consumeAmmoFromContraption(context.contraption, gunStack, false)) {
                     for (ItemStack box : virtualBE.attachedAmmoBoxes) {
                         if (!box.isEmpty() && box.getItem() instanceof com.tacz.guns.api.item.IAmmoBox iBox) {
@@ -438,39 +532,50 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
         for (int slot = 0; slot < virtualBE.attachedAmmoBoxes.size(); slot++) {
             ItemStack box = virtualBE.attachedAmmoBoxes.get(slot);
-            boolean needsReplace = false;
-            if (box.isEmpty()) {
-                needsReplace = true;
-            } else if (box.getItem() instanceof com.tacz.guns.api.item.IAmmoBox iBox) {
-                if (iBox.isCreative(box) || iBox.isAllTypeCreative(box)) continue;
-                ResourceLocation boxId = iBox.getAmmoId(box);
-                if (boxId == null || !boxId.equals(requiredAmmoId) || iBox.getAmmoCount(box) <= 0) {
-                    needsReplace = true;
-                }
-            }
+            if (box.isEmpty() || !(box.getItem() instanceof com.tacz.guns.api.item.IAmmoBox iBox)) continue;
+            if (iBox.isCreative(box) || iBox.isAllTypeCreative(box)) continue;
+            ResourceLocation boxId = iBox.getAmmoId(box);
+            if (!requiredAmmoId.equals(boxId)) continue;
+            int currentAmmo = iBox.getAmmoCount(box);
+            if (currentAmmo > 256) continue;
+            int needed = 512 - currentAmmo;
+            if (needed <= 0) continue;
 
-            if (needsReplace) {
-                for (int i = 0; i < inventory.getSlots(); i++) {
-                    ItemStack stack = inventory.getStackInSlot(i);
-                    if (stack.isEmpty() || !(stack.getItem() instanceof com.tacz.guns.api.item.IAmmoBox iBox)) continue;
-                    if (iBox.isCreative(stack) || iBox.isAllTypeCreative(stack)) {
-                        virtualBE.attachedAmmoBoxes.set(slot, stack.copy());
+            for (int i = 0; i < inventory.getSlots() && needed > 0; i++) {
+                ItemStack slotStack = inventory.getStackInSlot(i);
+                if (slotStack.isEmpty()) continue;
+                if (slotStack.getItem() instanceof com.tacz.guns.api.item.IAmmoBox storageBox) {
+                    if (!requiredAmmoId.equals(storageBox.getAmmoId(slotStack))) continue;
+                    if (storageBox.isCreative(slotStack) || storageBox.isAllTypeCreative(slotStack)) {
+                        iBox.setAmmoCount(box, 512);
+                        needed = 0;
                         break;
                     }
-                    ResourceLocation stackId = iBox.getAmmoId(stack);
-                    if (requiredAmmoId.equals(stackId) && iBox.getAmmoCount(stack) > 0) {
-                        ItemStack fullBox = inventory.extractItem(i, 1, false);
-                        if (!fullBox.isEmpty()) {
-                            ItemStack oldBox = virtualBE.attachedAmmoBoxes.get(slot);
-                            virtualBE.attachedAmmoBoxes.set(slot, fullBox);
-                            if (!oldBox.isEmpty() && oldBox.getItem() instanceof com.tacz.guns.api.item.IAmmoBox) {
-                                inventory.insertItem(i, oldBox, false);
-                            }
-                        }
-                        break;
+                    int storageCount = storageBox.getAmmoCount(slotStack);
+                    int take = Math.min(needed, storageCount);
+                    if (take <= 0) continue;
+                    storageBox.setAmmoCount(slotStack, storageCount - take);
+                    currentAmmo += take;
+                    needed -= take;
+                } else {
+                    boolean ammoIdMatch = false;
+                    if (slotStack.getItem() instanceof com.tacz.guns.api.item.IAmmo ammoItem) {
+                        if (requiredAmmoId.equals(ammoItem.getAmmoId(slotStack))) ammoIdMatch = true;
+                    } else {
+                        ResourceLocation itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(slotStack.getItem());
+                        if (itemId != null && itemId.equals(requiredAmmoId)) ammoIdMatch = true;
+                    }
+                    if (!ammoIdMatch) continue;
+                    int taken = Math.min(needed, slotStack.getCount());
+                    ItemStack extracted = inventory.extractItem(i, taken, false);
+                    if (!extracted.isEmpty()) {
+                        currentAmmo += extracted.getCount();
+                        needed -= extracted.getCount();
                     }
                 }
             }
+            iBox.setAmmoCount(box, currentAmmo);
+            virtualBE.attachedAmmoBoxes.set(slot, box);
         }
     }
 
@@ -493,7 +598,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     private TargetResult scanForTarget(MovementContext context, VirtualSentryArmBlockEntity virtualBE,
                                        AbstractContraptionEntity contraptionEntity,
                                        Vec3 globalPos, Vec3 muzzlePos, Entity shooter) {
-        double range = calculateMaxSentryRange(virtualBE.getHeldItem());
+        double range = calculateContraptionRange(context, virtualBE);
         FireControlMovementBehaviour.FireControlData fcData = FireControlMovementBehaviour.findFireControl(context.contraption);
 
         boolean fireControlActive = fcData != null && !fcData.displayItem.isEmpty();
@@ -619,7 +724,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         }
 
         rpm = Mth.clamp(rpm, 1f, 256f);
-        float multiplier = Mth.map(rpm, 1.0f, 256.0f, 0.1f, 1.0f);
+        float multiplier = Mth.map(rpm, 1.0f, 256.0f, 0.3f, 1.0f);
         return baseChaserSpeed * multiplier;
     }
 
@@ -648,6 +753,18 @@ public class SentryMovementBehaviour implements MovementBehaviour {
                 shooter
         ));
         return result.getType() == net.minecraft.world.phys.HitResult.Type.MISS;
+    }
+
+    private double calculateContraptionRange(MovementContext context, VirtualSentryArmBlockEntity virtualBE) {
+        double base = calculateMaxSentryRange(virtualBE.getHeldItem());
+        if (context.blockEntityData != null && context.blockEntityData.contains("ScrollValue")) {
+            net.minecraft.nbt.CompoundTag scrollTag = context.blockEntityData.getCompound("ScrollValue");
+            if (scrollTag.contains("Value")) {
+                int savedRange = scrollTag.getInt("Value");
+                if (savedRange > 1) base = savedRange;
+            }
+        }
+        return base;
     }
 
     private double calculateMaxSentryRange(ItemStack gunStack) {
@@ -710,8 +827,12 @@ public class SentryMovementBehaviour implements MovementBehaviour {
                     if (itemId != null && itemId.equals(requiredAmmoId)) isLooseMatch = true;
                 }
                 if (isLooseMatch) {
-                    ItemStack extracted = inventory.extractItem(i, 1, simulate);
-                    if (!extracted.isEmpty()) return true;
+                    if (simulate) {
+                        if (!stack.isEmpty()) return true;
+                    } else {
+                        ItemStack extracted = inventory.extractItem(i, 1, false);
+                        if (!extracted.isEmpty()) return true;
+                    }
                 }
             }
         }

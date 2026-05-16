@@ -261,11 +261,16 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
 
                 for (int i = 0; i < attachedAmmoBoxes.size(); i++) {
                     ItemStack playerStack = fakePlayer.getInventory().getItem(9 + i);
+                    ItemStack currentBox = attachedAmmoBoxes.get(i);
 
-                    if (!ItemStack.matches(playerStack, attachedAmmoBoxes.get(i))) {
-                        attachedAmmoBoxes.set(i, playerStack.copy());
-                        this.setChanged();
-                        this.sendData();
+                    if (playerStack.isEmpty() && !currentBox.isEmpty()) {
+                        fakePlayer.getInventory().setItem(9 + i, currentBox.copy());
+                    } else if (!playerStack.isEmpty() || currentBox.isEmpty()) {
+                        if (!ItemStack.matches(playerStack, currentBox)) {
+                            attachedAmmoBoxes.set(i, playerStack.copy());
+                            this.setChanged();
+                            this.sendData();
+                        }
                     }
                 }
 

@@ -584,6 +584,10 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
         }
 
         ItemStack heldItem = virtualBE.getHeldItem();
+        if (heldItem.isEmpty() && context.blockEntityData != null && context.blockEntityData.contains("SentryHeldItem")) {
+            heldItem = ItemStack.parseOptional(renderWorld.registryAccess(), context.blockEntityData.getCompound("SentryHeldItem"));
+            virtualBE.setHeldItem(heldItem);
+        }
         boolean hasItem = !heldItem.isEmpty();
         boolean isBlockItem = false;
         if (hasItem) {
@@ -661,9 +665,32 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
 
             if (clawTipWorldMatrix != null) {
                 renderHeldItem(buffer, renderWorld, virtualBE, light, clawTipWorldMatrix, context);
+                net.minecraft.world.level.Level ammoLevel = context.world != null ? context.world : renderWorld;
+                org.joml.Matrix4f ammoMatrix = new org.joml.Matrix4f(clawTipWorldMatrix);
+                org.joml.Vector4f ammoWorldPos = new org.joml.Vector4f(0, 0, 0, 1);
+                ammoMatrix.transform(ammoWorldPos);
+                net.minecraft.client.Camera camera = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera();
+                Vec3 cameraPos = camera.getPosition();
+                for (int slot = 0; slot < virtualBE.attachedAmmoBoxes.size(); slot++) {
+                    ItemStack box = virtualBE.attachedAmmoBoxes.get(slot);
+                    if (box.isEmpty()) continue;
+                    PoseStack boxStack = new PoseStack();
+                    boxStack.translate(ammoWorldPos.x() - cameraPos.x, ammoWorldPos.y() - cameraPos.y, ammoWorldPos.z() - cameraPos.z);
+                    org.joml.Quaternionf boxRot = new org.joml.Quaternionf();
+                    ammoMatrix.getUnnormalizedRotation(boxRot);
+                    boxStack.mulPose(boxRot);
+                    boxStack.scale(0.5f, 0.5f, 0.5f);
+                    if (slot == 0) {
+                        boxStack.translate(0.35, 0.2, 0.9);
+                        boxStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-90));
+                    } else {
+                        boxStack.translate(-0.35, 0.2, 0.9);
+                        boxStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(90));
+                    }
+                    net.minecraft.client.Minecraft.getInstance().getItemRenderer().renderStatic(box, net.minecraft.world.item.ItemDisplayContext.FIXED, light, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, boxStack, buffer, ammoLevel, 0);
+                }
             }
         } catch (Exception e) {
-            SentryMechanicalArm.LOGGER.debug("[render] renderInContraption failed: {}", e.getMessage());
         } finally {
             ms.popPose();
         }
