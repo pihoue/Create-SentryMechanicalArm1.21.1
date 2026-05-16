@@ -201,51 +201,79 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             localViewVec = Vec3.directionFromRotation(-currentLocalPitch, -currentLocalYaw - 180);
         }
 
-        TargetResult result = scanForTarget(context, virtualBE, contraptionEntity, globalPos, accurateMuzzlePos, contraptionEntity);
+        int targetId = context.data.getInt("_TargetId");
+        boolean hasValidTarget = false;
+        boolean needsNewScan = context.data.getInt("_ScanCooldown") <= 0;
 
-        if (result != null) {
-            Vec3 targetGlobal = result.aimPos();
-            Vec3 worldAimVec = targetGlobal.subtract(accurateMuzzlePos);
-
-            Vec3 targetVecLocal = contraptionEntity.reverseRotation(worldAimVec, 0.0F);
-
-            double yawRad = Mth.atan2(targetVecLocal.x, targetVecLocal.z);
-            float targetYaw = (float) Math.toDegrees(yawRad) + 180;
-
-            double horizontalDist = Math.sqrt(targetVecLocal.x * targetVecLocal.x + targetVecLocal.z * targetVecLocal.z);
-            double pitchRad = Mth.atan2(targetVecLocal.y, horizontalDist);
-            float targetPitch = (float) Math.toDegrees(pitchRad);
-
-            aimAtAngle(context, virtualBE, targetYaw, targetPitch);
-
-            Vec3 targetDir = targetVecLocal.normalize();
-
-            double dot = localViewVec.dot(targetDir);
-            dot = Mth.clamp(dot, -1.0, 1.0);
-
-            double totalDeviation = Math.toDegrees(Math.acos(dot));
-
-            boolean isDeployed = virtualBE.upperArmAngle.getValue() > 45f;
-
-            boolean readyToShoot = totalDeviation < 12.0 && isDeployed && clientDelay <= 0;
-
-            if (readyToShoot) {
-                double dist = Math.sqrt(targetGlobal.distanceToSqr(accurateMuzzlePos));
-
-                double gYawRad = Mth.atan2(worldAimVec.z, worldAimVec.x) - (Math.PI / 2.0);
-                float packetYaw = (float) Math.toDegrees(gYawRad);
-
-                double gPitchRad = Mth.atan2(worldAimVec.y, horizontalDist);
-                float packetPitch = (float) -Math.toDegrees(gPitchRad);
-
-                PacketDistributor.sendToServer(new SentryClientShootPacket(
-                        contraptionEntity.getId(), context.localPos, packetYaw, packetPitch, dist
-                ));
-
-                context.data.putFloat("ClientShootDelay", 2.0f);
+        if (targetId != -1 && context.world != null) {
+            Entity target = context.world.getEntity(targetId);
+            if (target instanceof LivingEntity living && living.isAlive()) {
+                double range = calculateContraptionRange(context, virtualBE);
+                if (living.distanceToSqr(globalPos) <= range * range) {
+                    Vec3 hitPos = getBestTargetPos(context.world, living, accurateMuzzlePos, contraptionEntity);
+                    if (hitPos != null) {
+                        hasValidTarget = true;
+                        aimAndFire(context, virtualBE, contraptionEntity, accurateMuzzlePos, globalPos, globalPos, accurateMuzzlePos, localViewVec, clientDelay, living, hitPos, currentLocalYaw, currentLocalPitch);
+                    }
+                }
             }
-        } else {
-            tickIdleScan(context, virtualBE);
+        }
+
+        if (!hasValidTarget) {
+            int scanCd = context.data.getInt("_ScanCooldown");
+            scanCd--;
+            context.data.putInt("_ScanCooldown", scanCd);
+
+            if (needsNewScan) {
+                TargetResult result = scanForTarget(context, virtualBE, contraptionEntity, globalPos, accurateMuzzlePos, contraptionEntity);
+                context.data.putInt("_ScanCooldown", 20);
+                if (result != null) {
+                    context.data.putInt("_TargetId", result.entity().getId());
+                    aimAndFire(context, virtualBE, contraptionEntity, accurateMuzzlePos, globalPos, globalPos, accurateMuzzlePos, localViewVec, clientDelay, result.entity(), result.aimPos(), currentLocalYaw, currentLocalPitch);
+                } else {
+                    context.data.putInt("_TargetId", -1);
+                    tickIdleScan(context, virtualBE);
+                }
+            } else {
+                tickIdleScan(context, virtualBE);
+            }
+        }
+    }
+
+    private void aimAndFire(MovementContext context, VirtualSentryArmBlockEntity virtualBE,
+                            AbstractContraptionEntity contraptionEntity, Vec3 accurateMuzzlePos, Vec3 globalPos,
+                            Vec3 gunPos, Vec3 muzzlePos, Vec3 localViewVec, float clientDelay,
+                            LivingEntity target, Vec3 aimPos, float currentLocalYaw, float currentLocalPitch) {
+        Vec3 worldAimVec = aimPos.subtract(accurateMuzzlePos);
+        Vec3 targetVecLocal = contraptionEntity.reverseRotation(worldAimVec, 0.0F);
+
+        double yawRad = Mth.atan2(targetVecLocal.x, targetVecLocal.z);
+        float targetYaw = (float) Math.toDegrees(yawRad) + 180;
+
+        double horizontalDist = Math.sqrt(targetVecLocal.x * targetVecLocal.x + targetVecLocal.z * targetVecLocal.z);
+        double pitchRad = Mth.atan2(targetVecLocal.y, horizontalDist);
+        float targetPitch = (float) Math.toDegrees(pitchRad);
+
+        aimAtAngle(context, virtualBE, targetYaw, targetPitch);
+
+        Vec3 targetDir = targetVecLocal.normalize();
+        double dot = localViewVec.dot(targetDir);
+        dot = Mth.clamp(dot, -1.0, 1.0);
+        double totalDeviation = Math.toDegrees(Math.acos(dot));
+        boolean isDeployed = virtualBE.upperArmAngle.getValue() > 45f;
+        boolean readyToShoot = totalDeviation < 12.0 && isDeployed && clientDelay <= 0;
+
+        if (readyToShoot) {
+            double dist = Math.sqrt(aimPos.distanceToSqr(accurateMuzzlePos));
+            double gYawRad = Mth.atan2(worldAimVec.z, worldAimVec.x) - (Math.PI / 2.0);
+            float packetYaw = (float) Math.toDegrees(gYawRad);
+            double gPitchRad = Mth.atan2(worldAimVec.y, horizontalDist);
+            float packetPitch = (float) -Math.toDegrees(gPitchRad);
+
+            PacketDistributor.sendToServer(new SentryClientShootPacket(
+                    contraptionEntity.getId(), context.localPos, packetYaw, packetPitch, dist
+            ));
+            context.data.putFloat("ClientShootDelay", 2.0f);
         }
     }
 
