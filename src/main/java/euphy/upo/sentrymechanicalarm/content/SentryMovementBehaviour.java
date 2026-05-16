@@ -33,7 +33,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
@@ -173,7 +173,6 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     }
 
     private void tickClientLogic(MovementContext context, VirtualSentryArmBlockEntity virtualBE) {
-        euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[TICK] tickClientLogic called");
         float clientDelay = context.data.contains("ClientShootDelay") ? context.data.getFloat("ClientShootDelay") : 0;
         if (clientDelay > 0) clientDelay--;
         context.data.putFloat("ClientShootDelay", clientDelay);
@@ -599,7 +598,6 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     private TargetResult scanForTarget(MovementContext context, VirtualSentryArmBlockEntity virtualBE,
                                        AbstractContraptionEntity contraptionEntity,
                                        Vec3 globalPos, Vec3 muzzlePos, Entity shooter) {
-        euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[TICK] scanForTarget called");
         double range = calculateContraptionRange(context, virtualBE);
         FireControlMovementBehaviour.FireControlData fcData = FireControlMovementBehaviour.findFireControl(context.contraption);
 
@@ -626,16 +624,12 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             if (enemy == shooter) continue;
 
             if (!isValidTarget(enemy, fcData)) {
-                if (enemy.getType() == net.minecraft.world.entity.EntityType.PHANTOM) {
-                    euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[PHANTOM] phantom rejected by isValidTarget");
-                }
                 continue;
             }
 
             double distSq = enemy.distanceToSqr(globalPos);
             if (distSq > minDstSq) {
                 if (enemy.getType() == net.minecraft.world.entity.EntityType.PHANTOM) {
-                    euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[PHANTOM] phantom too far: distSq={} > max={}", distSq, minDstSq);
                 }
                 continue;
             }
@@ -643,13 +637,11 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             Vec3 hitPos = getBestTargetPos(context.world, enemy, muzzlePos, shooter);
             if (hitPos != null) {
                 if (enemy.getType() == net.minecraft.world.entity.EntityType.PHANTOM) {
-                    euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[PHANTOM] found phantom! distSq={}, hitPos={}", distSq, hitPos);
                 }
                 minDstSq = distSq;
                 bestEntity = enemy;
                 bestPos = hitPos;
             } else if (enemy.getType() == net.minecraft.world.entity.EntityType.PHANTOM) {
-                euphy.upo.sentrymechanicalarm.SentryMechanicalArm.LOGGER.info("[PHANTOM] phantom getBestTargetPos returned null");
             }
         }
 
@@ -660,9 +652,9 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     }
 
     private boolean isValidTarget(LivingEntity entity, FireControlMovementBehaviour.FireControlData fcData) {
-        if (fcData == null) return entity instanceof Monster;
+        if (fcData == null) return entity instanceof net.minecraft.world.entity.monster.Enemy;
 
-        if (fcData.displayItem.isEmpty()) return entity instanceof Monster;
+        if (fcData.displayItem.isEmpty()) return entity instanceof net.minecraft.world.entity.monster.Enemy;
 
         String entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
         String name = entity.getName().getString();
