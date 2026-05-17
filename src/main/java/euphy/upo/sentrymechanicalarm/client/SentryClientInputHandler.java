@@ -78,23 +78,28 @@ public class SentryClientInputHandler {
 
             Entity target = getLookedAtEntity(player, 256.0);
             if (target != null) {
-                PacketDistributor.sendToServer(new SentryFocusPacket(fcPos, target.getId()));
-
                 int targetId = target.getId();
-                net.minecraft.world.phys.AABB worldBounds = new net.minecraft.world.phys.AABB(
-                    -30000000, -30000000, -30000000, 30000000, 30000000, 30000000);
-                for (AbstractContraptionEntity ace : player.level().getEntitiesOfClass(AbstractContraptionEntity.class, worldBounds)) {
+                int foundAceId = -1;
+                BlockPos foundLocalPos = fcPos;
+
+                net.minecraft.world.phys.AABB searchBounds = new net.minecraft.world.phys.AABB(fcPos).inflate(256);
+                for (AbstractContraptionEntity ace : player.level().getEntitiesOfClass(AbstractContraptionEntity.class, searchBounds)) {
                     Contraption contraption = ace.getContraption();
                     if (contraption == null) continue;
-                    if (!contraption.getBlocks().containsKey(fcPos)) continue;
+                    Vec3 localCenter = ace.toLocalVector(Vec3.atCenterOf(fcPos), 0);
+                    BlockPos queryLocalPos = BlockPos.containing(localCenter);
                     for (org.apache.commons.lang3.tuple.MutablePair<?, MovementContext> actor : contraption.getActors()) {
-                        if (actor.getValue().temporaryData instanceof FireControlMovementBehaviour.FireControlData fcData
-                                && actor.getValue().localPos.equals(fcPos)) {
+                        if (!actor.getValue().localPos.equals(queryLocalPos)) continue;
+                        if (actor.getValue().temporaryData instanceof FireControlMovementBehaviour.FireControlData fcData) {
                             fcData.focusedEntityId = targetId;
                             actor.getValue().data.putInt("FocusedEntityId", targetId);
+                            foundAceId = ace.getId();
+                            foundLocalPos = queryLocalPos;
                         }
                     }
                 }
+
+                PacketDistributor.sendToServer(new SentryFocusPacket(foundAceId, foundLocalPos, targetId));
 
                 player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 0.8f, 1.8f);
                 lastRecordTime = System.currentTimeMillis();
