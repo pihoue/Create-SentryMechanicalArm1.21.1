@@ -494,6 +494,7 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
 
     public void updateFromFireControl() {
         this.cachedTarget = null;
+        this.cachedTargetBlock = null;
         this.setTargetId(-1);
         this.scanCooldown = 0;
     }

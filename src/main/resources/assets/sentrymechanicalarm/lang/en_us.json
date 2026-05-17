@@ -33,11 +33,11 @@
   "message.sentrymechanicalarm.scope_not_bound": "Scope not bound to a Fire Control",
   "message.sentrymechanicalarm.scope_unbound": "Unbound from Fire Control",
   "message.sentrymechanicalarm.focus_set": "Focus set to %s",
-  "message.sentrymechanicalarm.can_focus": "[Left-Click to Mark Target]",
+  "message.sentrymechanicalarm.can_focus": "[Left-Click to Focus]",
   "message.sentrymechanicalarm.scope_not_bound_hud": "[Scope not bound]",
   "item.sentrymechanicalarm.fire_control_clipboard.tooltip.summary": "Please have no mercy whatsoever.",
   "item.sentrymechanicalarm.fire_control_clipboard.tooltip.condition1": "When held",
-  "item.sentrymechanicalarm.fire_control_clipboard.tooltip.behaviour1": "SHIFT right-click to add yourself; Spyglass (main hand) + clipboard (offhand) + left-click to mark targets remotely.",
+  "item.sentrymechanicalarm.fire_control_clipboard.tooltip.behaviour1": "SHIFT right-click to add yourself; Spyglass (main hand) + clipboard (offhand) + middle-click to mark targets remotely.",
   "item.sentrymechanicalarm.fire_control_clipboard.tooltip.condition2": "When used on a Laterano Fire Controller",
   "item.sentrymechanicalarm.fire_control_clipboard.tooltip.behaviour2": "Sentry Mechanical Arms controlled by this Fire Controller will only attack entities on the list.",
   "item.sentrymechanicalarm.fire_control_clipboard": "Cross-border Pursuit Permit",
@@ -112,5 +112,7 @@
   "message.sentrymechanicalarm.blacklist": "Blacklist (Attack List)",
   "message.sentrymechanicalarm.blacklist_des": "Only attack entities on the list",
   "message.sentrymechanicalarm.scope_bound_hud": "Bound to Fire Control",
-  "message.sentrymechanicalarm.can_mark": "[Left-Click to Mark]"
+  "message.sentrymechanicalarm.can_mark": "[Middle-Click to Mark]",
+  "message.sentrymechanicalarm.no_clipboard": "[No Clipboard in FC]",
+  "message.sentrymechanicalarm.list_empty": "(empty)"
 }

@@ -16,7 +16,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.*;
@@ -29,7 +28,8 @@ import net.neoforged.neoforge.network.PacketDistributor;
 @EventBusSubscriber(modid = SentryMechanicalArm.MODID, value = Dist.CLIENT)
 public class SentryClientInputHandler {
 
-    private static long lastRecordTime = 0;
+    private static long lastMarkTime = 0;
+    private static long lastFocusTime = 0;
 
     @SubscribeEvent
     public static void onMouseInput(InputEvent.MouseButton.Pre event) {
@@ -40,38 +40,44 @@ public class SentryClientInputHandler {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
-        if (!mc.options.keyAttack.matchesMouse(event.getButton())) {
-            return;
-        }
+
+        boolean isHoldingScope = player.getMainHandItem().getItem() instanceof SentryScopeItem;
+        boolean isUsingScope = player.isUsingItem() && player.getUseItem().getItem() instanceof SentryScopeItem;
         boolean isHoldingSpyglass = player.getMainHandItem().getItem() == Items.SPYGLASS;
         boolean isUsingSpyglass = player.isUsingItem() && player.getUseItem().getItem() == Items.SPYGLASS;
         boolean isOffhandClipboard = player.getOffhandItem().getItem() instanceof FireControlClipboardItem;
 
-        if (isHoldingSpyglass && isUsingSpyglass && isOffhandClipboard) {
-            if (System.currentTimeMillis() - lastRecordTime < 500) {
+        // Middle-click: record target (spyglass + clipboard)
+        if (event.getButton() == 2) {
+            if (isHoldingSpyglass && isUsingSpyglass && isOffhandClipboard) {
+                if (System.currentTimeMillis() - lastMarkTime < 500) {
+                    event.setCanceled(true);
+                    return;
+                }
+
+                Entity target = getLookedAtEntity(player, 256.0);
+
+                if (target != null) {
+                    PacketDistributor.sendToServer(new SentryRecordTargetPacket(target.getId()));
+                    player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.6f, 1.5f);
+                    lastMarkTime = System.currentTimeMillis();
+                }
+
                 event.setCanceled(true);
-                return;
             }
-
-            Entity target = getLookedAtEntity(player, 256.0);
-
-            if (target != null) {
-                PacketDistributor.sendToServer(new SentryRecordTargetPacket(target.getId()));
-                player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.6f, 1.5f);
-                lastRecordTime = System.currentTimeMillis();
-            }
-
-            event.setCanceled(true);
             return;
         }
 
-        boolean isHoldingScope = player.getMainHandItem().getItem() instanceof SentryScopeItem;
-        boolean isUsingScope = player.isUsingItem() && player.getUseItem().getItem() instanceof SentryScopeItem;
+        // Below: only attack key (left-click by default) — focus mode
+        if (!mc.options.keyAttack.matchesMouse(event.getButton())) {
+            return;
+        }
+
         if (isHoldingScope && isUsingScope) {
             BlockPos fcPos = SentryScopeItem.getLinkedFireControlPos(player.getMainHandItem());
             if (fcPos == null) return;
 
-            if (System.currentTimeMillis() - lastRecordTime < 500) {
+            if (System.currentTimeMillis() - lastFocusTime < 500) {
                 event.setCanceled(true);
                 return;
             }
@@ -86,23 +92,37 @@ public class SentryClientInputHandler {
                 for (AbstractContraptionEntity ace : player.level().getEntitiesOfClass(AbstractContraptionEntity.class, searchBounds)) {
                     Contraption contraption = ace.getContraption();
                     if (contraption == null) continue;
+                    double distToTarget = ace.position().distanceTo(target.position());
+                    if (distToTarget > 128.0) continue;
                     Vec3 localCenter = ace.toLocalVector(Vec3.atCenterOf(fcPos), 0);
                     BlockPos queryLocalPos = BlockPos.containing(localCenter);
                     for (org.apache.commons.lang3.tuple.MutablePair<?, MovementContext> actor : contraption.getActors()) {
-                        if (!actor.getValue().localPos.equals(queryLocalPos)) continue;
-                        if (actor.getValue().temporaryData instanceof FireControlMovementBehaviour.FireControlData fcData) {
+                        MovementContext ctx = actor.getValue();
+                        if (ctx.temporaryData instanceof FireControlMovementBehaviour.FireControlData fcData
+                                && ctx.localPos.equals(queryLocalPos)) {
+                            if (fcData.focusedEntityId == targetId) {
+                                targetId = -1;
+                            }
                             fcData.focusedEntityId = targetId;
-                            actor.getValue().data.putInt("FocusedEntityId", targetId);
+                            ctx.data.putInt("FocusedEntityId", targetId);
                             foundAceId = ace.getId();
                             foundLocalPos = queryLocalPos;
+                        }
+                        if (ctx.temporaryData instanceof euphy.upo.sentrymechanicalarm.content.VirtualSentryArmBlockEntity) {
+                            ctx.data.putInt("_TargetId", -1);
+                            ctx.data.putInt("_ScanCooldown", 0);
                         }
                     }
                 }
 
+                if (foundAceId == -1) {
+                    event.setCanceled(true);
+                    return;
+                }
                 PacketDistributor.sendToServer(new SentryFocusPacket(foundAceId, foundLocalPos, targetId));
 
                 player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 0.8f, 1.8f);
-                lastRecordTime = System.currentTimeMillis();
+                lastFocusTime = System.currentTimeMillis();
             }
 
             event.setCanceled(true);

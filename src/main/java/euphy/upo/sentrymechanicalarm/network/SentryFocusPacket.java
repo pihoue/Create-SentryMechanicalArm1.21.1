@@ -48,6 +48,7 @@ public record SentryFocusPacket(int contraptionEntityId, BlockPos localPos, int 
                     continue;
                 fcData.focusedEntityId = packet.targetEntityId();
                 actor.getValue().data.putInt("FocusedEntityId", packet.targetEntityId());
+                FireControlMovementBehaviour.notifyConnectedSentries(actor.getValue());
                 return;
             }
             return;

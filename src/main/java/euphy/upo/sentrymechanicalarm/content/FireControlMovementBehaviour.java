@@ -148,6 +148,8 @@ public class FireControlMovementBehaviour implements MovementBehaviour {
                 ctx.data.remove("SentryTargetId");
                 ctx.data.putBoolean("SentryHasTarget", false);
 
+                ctx.data.putInt("_TargetId", -1);
+                ctx.data.putInt("_ScanCooldown", 0);
                 ctx.data.putInt("IdleScanTimer", 0);
             }
         }

@@ -18,6 +18,8 @@ import com.tacz.guns.resource.pojo.data.gun.BulletData;
 import com.tacz.guns.resource.pojo.data.gun.ExtraDamage;
 import com.tacz.guns.resource.pojo.data.gun.GunData;
 import com.tacz.guns.resource.pojo.data.gun.InaccuracyType;
+import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
+import euphy.upo.sentrymechanicalarm.compat.AeronauticsHelper;
 import euphy.upo.sentrymechanicalarm.network.NetworkHandler;
 import euphy.upo.sentrymechanicalarm.network.SentryClientShootPacket;
 import euphy.upo.sentrymechanicalarm.network.SentryContraptionShootPacket;
@@ -83,6 +85,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         if (!context.world.isClientSide) {
             if (!context.data.contains("ShootDelay")) context.data.putFloat("ShootDelay", 0f);
         }
+        context.data.putInt("_TargetId", -1);
     }
 
     @Override
@@ -147,6 +150,14 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         AbstractContraptionEntity contraptionEntity = context.contraption != null ? context.contraption.entity : null;
 
         if (contraptionEntity != null) {
+            SentryMechanicalArm.LOGGER.info("[SentryTick] contraptionClass={} worldClass={} isClient={} hasGun={} pos=({},{},{})",
+                    contraptionEntity.getClass().getSimpleName(),
+                    context.world != null ? context.world.getClass().getSimpleName() : "null",
+                    context.world != null && context.world.isClientSide,
+                    hasGun,
+                    String.format("%.1f", contraptionEntity.position().x),
+                    String.format("%.1f", contraptionEntity.position().y),
+                    String.format("%.1f", contraptionEntity.position().z));
             Vec3 localPosCenter = VecHelper.getCenterOf(context.localPos);
             Vec3 turretGlobalPos = contraptionEntity.toGlobalVector(localPosCenter, 1.0f);
             virtualBE.setVirtualPos(BlockPos.containing(turretGlobalPos));
@@ -172,6 +183,12 @@ public class SentryMovementBehaviour implements MovementBehaviour {
                 }
             } else if (context.world != null) {
                 tickServerLogic(context);
+                int serverTick = context.data.getInt("_ServerTick");
+                serverTick++;
+                context.data.putInt("_ServerTick", serverTick);
+                if (serverTick % 3 == 0) {
+                    tickServerTargeting(context, virtualBE, contraptionEntity);
+                }
             }
         } else {
             if (context.world != null && context.world.isClientSide) {
@@ -214,16 +231,32 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         boolean hasValidTarget = false;
         boolean needsNewScan = context.data.getInt("_ScanCooldown") <= 0;
 
+        SentryMechanicalArm.LOGGER.info("[SentryTarget] tickClientLogic targetId={} worldClass={} contraptionClass={} scanCD={}",
+                targetId, context.world != null ? context.world.getClass().getSimpleName() : "null",
+                contraptionEntity.getClass().getSimpleName(), context.data.getInt("_ScanCooldown"));
+
         if (targetId != -1 && context.world != null) {
             Entity target = context.world.getEntity(targetId);
+            boolean isLiving = target instanceof LivingEntity;
+            boolean isAlive = isLiving && ((LivingEntity)target).isAlive();
+            SentryMechanicalArm.LOGGER.info("[SentryTarget] entityLookup targetId={} found={} isLiving={} isAlive={} class={} pos=({},{},{})",
+                    targetId, target != null, isLiving, isAlive,
+                    target != null ? target.getClass().getSimpleName() : "null",
+                    target != null ? String.format("%.1f", target.position().x) : "?",
+                    target != null ? String.format("%.1f", target.position().y) : "?",
+                    target != null ? String.format("%.1f", target.position().z) : "?");
             if (target instanceof LivingEntity living && living.isAlive()) {
                 double range = calculateContraptionRange(context, virtualBE);
-                if (living.distanceToSqr(globalPos) <= range * range) {
-                    Vec3 hitPos = getBestTargetPos(context.world, living, accurateMuzzlePos, contraptionEntity);
-                    if (hitPos != null) {
-                        hasValidTarget = true;
-                        aimAndFire(context, virtualBE, contraptionEntity, accurateMuzzlePos, globalPos, globalPos, accurateMuzzlePos, localViewVec, clientDelay, living, hitPos, currentLocalYaw, currentLocalPitch);
-                    }
+                double distSq = living.distanceToSqr(globalPos);
+                boolean inRange = distSq <= range * range;
+                Vec3 hitPos = inRange ? getBestTargetPos(context.world, living, accurateMuzzlePos, contraptionEntity) : null;
+                SentryMechanicalArm.LOGGER.info("[SentryTarget] validation range={} distSq={} inRange={} los={} targetPos=({},{},{}) sentryPos=({},{},{})",
+                        String.format("%.1f", range), String.format("%.1f", distSq), inRange, hitPos != null,
+                        String.format("%.1f", living.position().x), String.format("%.1f", living.position().y), String.format("%.1f", living.position().z),
+                        String.format("%.1f", globalPos.x), String.format("%.1f", globalPos.y), String.format("%.1f", globalPos.z));
+                if (inRange && hitPos != null) {
+                    hasValidTarget = true;
+                    aimAndFire(context, virtualBE, contraptionEntity, accurateMuzzlePos, globalPos, globalPos, accurateMuzzlePos, localViewVec, clientDelay, living, hitPos, currentLocalYaw, currentLocalPitch);
                 }
             }
         }
@@ -236,12 +269,15 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             context.data.putInt("_ScanCooldown", scanCd);
 
             if (needsNewScan) {
+                SentryMechanicalArm.LOGGER.info("[SentryScan] calling scanForTarget contraptionClass={} range={}", contraptionEntity.getClass().getSimpleName(), calculateContraptionRange(context, virtualBE));
                 TargetResult result = scanForTarget(context, virtualBE, contraptionEntity, globalPos, accurateMuzzlePos, contraptionEntity);
                 context.data.putInt("_ScanCooldown", 20);
                 if (result != null) {
+                    SentryMechanicalArm.LOGGER.info("[SentryScan] scanForTarget FOUND targetId={} targetClass={}", result.entity().getId(), result.entity().getClass().getSimpleName());
                     context.data.putInt("_TargetId", result.entity().getId());
                     aimAndFire(context, virtualBE, contraptionEntity, accurateMuzzlePos, globalPos, globalPos, accurateMuzzlePos, localViewVec, clientDelay, result.entity(), result.aimPos(), currentLocalYaw, currentLocalPitch);
                 } else {
+                    SentryMechanicalArm.LOGGER.info("[SentryScan] scanForTarget NULL no target found");
                     context.data.putInt("_TargetId", -1);
                     tickIdleScan(context, virtualBE);
                 }
@@ -274,6 +310,23 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         boolean isDeployed = virtualBE.upperArmAngle.getValue() > 45f;
         boolean readyToShoot = totalDeviation < 12.0 && isDeployed && clientDelay <= 0;
 
+        int logTick = context.data.getInt("_DebugLogTick");
+        logTick++;
+        context.data.putInt("_DebugLogTick", logTick);
+
+        if (!readyToShoot && target != null && logTick % 10 == 0) {
+            float rpm = virtualBE != null ? virtualBE.getContraptionSpeed() : 0f;
+            double speed = getAnimationSpeed(context, 0.35f);
+            float yawDiff = Math.abs(targetYaw - virtualBE.baseAngle.getValue());
+            while (yawDiff > 180) yawDiff -= 360;
+            SentryMechanicalArm.LOGGER.info(
+                "[SentryDebug] NOT READY dev={} deployed={} delay={} targetEnt={} rpm={} animSpeed={} yawTarget={} yawCur={} yawDiff={} targetPos={}",
+                String.format("%.2f", totalDeviation), isDeployed, clientDelay, target.getId(), String.format("%.1f", rpm), String.format("%.3f", speed),
+                String.format("%.1f", targetYaw), String.format("%.1f", virtualBE.baseAngle.getValue()), String.format("%.1f", yawDiff),
+                String.format("%.1f,%.1f,%.1f", target.position().x, target.position().y, target.position().z)
+            );
+        }
+
         if (readyToShoot) {
             double dist = Math.sqrt(aimPos.distanceToSqr(accurateMuzzlePos));
             double gYawRad = Mth.atan2(worldAimVec.z, worldAimVec.x) - (Math.PI / 2.0);
@@ -281,10 +334,109 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             double gPitchRad = Mth.atan2(worldAimVec.y, horizontalDist);
             float packetPitch = (float) -Math.toDegrees(gPitchRad);
 
+            SentryMechanicalArm.LOGGER.info(
+                "[SentryDebug] FIRING delay={} targetEnt={} dist={}",
+                clientDelay, target.getId(), String.format("%.2f", dist)
+            );
+
             PacketDistributor.sendToServer(new SentryClientShootPacket(
                     contraptionEntity.getId(), context.localPos, packetYaw, packetPitch, dist
             ));
             context.data.putFloat("ClientShootDelay", 2.0f);
+        }
+    }
+
+    private void tickServerTargeting(MovementContext context, VirtualSentryArmBlockEntity virtualBE,
+                                      AbstractContraptionEntity contraptionEntity) {
+        Vec3 localPosCenter = VecHelper.getCenterOf(context.localPos);
+        double yOffset = isCeiling(context) ? -2.0 : 2.0;
+        Vec3 localMuzzlePos = localPosCenter.add(0, yOffset, 0);
+        Vec3 accurateMuzzlePos = contraptionEntity.toGlobalVector(localMuzzlePos, 0.0F);
+        Vec3 globalPos = contraptionEntity.toGlobalVector(localPosCenter, 0.0F);
+
+        if (AeronauticsHelper.isAeronauticsLoaded() && context.world != null) {
+            Vec3 correctedGlobal = AeronauticsHelper.localToSimulatedWorld(context.world, localPosCenter, globalPos);
+            Vec3 correctedMuzzle = AeronauticsHelper.localToSimulatedWorld(context.world, localMuzzlePos, accurateMuzzlePos);
+            if (correctedGlobal.distanceToSqr(globalPos) > 0.01 || correctedMuzzle.distanceToSqr(accurateMuzzlePos) > 0.01) {
+                SentryMechanicalArm.LOGGER.info("[AeroScan] tickServerTargeting coords corrected: global ({},{},{})->({},{},{}) muzzle ({},{},{})->({},{},{})",
+                    String.format("%.1f", globalPos.x), String.format("%.1f", globalPos.y), String.format("%.1f", globalPos.z),
+                    String.format("%.1f", correctedGlobal.x), String.format("%.1f", correctedGlobal.y), String.format("%.1f", correctedGlobal.z),
+                    String.format("%.1f", accurateMuzzlePos.x), String.format("%.1f", accurateMuzzlePos.y), String.format("%.1f", accurateMuzzlePos.z),
+                    String.format("%.1f", correctedMuzzle.x), String.format("%.1f", correctedMuzzle.y), String.format("%.1f", correctedMuzzle.z));
+            }
+            globalPos = correctedGlobal;
+            accurateMuzzlePos = correctedMuzzle;
+        }
+
+        int aeroCheckTick = context.data.getInt("_AeroCheckTick");
+        aeroCheckTick++;
+        context.data.putInt("_AeroCheckTick", aeroCheckTick);
+        if (aeroCheckTick % 20 == 0 && AeronauticsHelper.isAeronauticsLoaded()) {
+            AeronauticsHelper.isPositionOnShip(context.world, globalPos);
+            AeronauticsHelper.isPositionOnShip(context.world, accurateMuzzlePos);
+        }
+
+        float serverDelay = context.data.getFloat("ShootDelay");
+        int targetId = context.data.getInt("_TargetId");
+        boolean hasValidTarget = false;
+
+        if (targetId != -1) {
+            Entity target = context.world.getEntity(targetId);
+            SentryMechanicalArm.LOGGER.info("[SentryTarget] serverTargeting targetId={} found={}",
+                    targetId, target != null);
+            if (target instanceof LivingEntity living && living.isAlive()) {
+                double range = calculateContraptionRange(context, virtualBE);
+                double distSq = living.distanceToSqr(globalPos);
+                boolean inRange = distSq <= range * range;
+                SentryMechanicalArm.LOGGER.info("[SentryTarget] server validation range={} distSq={} inRange={}",
+                        String.format("%.1f", range), String.format("%.1f", distSq), inRange);
+                if (inRange) {
+                    Vec3 hitPos = getBestTargetPos(context.world, living, accurateMuzzlePos, contraptionEntity);
+                    SentryMechanicalArm.LOGGER.info("[SentryTarget] server getBestTargetPos result={}", hitPos != null);
+                    if (hitPos != null) {
+                        hasValidTarget = true;
+                        Vec3 worldAimVec = hitPos.subtract(accurateMuzzlePos);
+                        double gYawRad = Mth.atan2(worldAimVec.z, worldAimVec.x) - (Math.PI / 2.0);
+                        float packetYaw = (float) Math.toDegrees(gYawRad);
+                        double horizontalDist2 = Math.sqrt(worldAimVec.x * worldAimVec.x + worldAimVec.z * worldAimVec.z);
+                        double gPitchRad = Mth.atan2(worldAimVec.y, horizontalDist2);
+                        float packetPitch = (float) -Math.toDegrees(gPitchRad);
+                        double dist = Math.sqrt(hitPos.distanceToSqr(accurateMuzzlePos));
+
+                        if (serverDelay <= 0) {
+                            ItemStack gunStack = virtualBE.getHeldItem();
+                            if (!gunStack.isEmpty()) {
+                                boolean fired = fireGunInContraption(context, virtualBE, gunStack, accurateMuzzlePos, packetYaw, packetPitch, dist);
+                                if (fired) {
+                                    float rpm = 600f;
+                                    if (gunStack.getItem() instanceof IGun iGun) {
+                                        var idx = TimelessAPI.getCommonGunIndex(iGun.getGunId(gunStack));
+                                        if (idx.isPresent()) rpm = idx.get().getGunData().getRoundsPerMinute(FireMode.AUTO);
+                                    }
+                                    if (rpm <= 0) rpm = 1;
+                                    context.data.putFloat("ShootDelay", 1200f / rpm);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!hasValidTarget) {
+            TargetPool.releaseByOwner(contraptionEntity.getUUID() + "|" + context.localPos);
+            int scanCd = context.data.getInt("_AeroScanCD");
+            scanCd--;
+            context.data.putInt("_AeroScanCD", scanCd);
+            if (scanCd <= 0) {
+                context.data.putInt("_AeroScanCD", 60);
+                TargetResult result = scanForTarget(context, virtualBE, contraptionEntity, globalPos, accurateMuzzlePos, contraptionEntity);
+                if (result != null) {
+                    context.data.putInt("_TargetId", result.entity().getId());
+                } else {
+                    context.data.putInt("_TargetId", -1);
+                }
+            }
         }
     }
 
@@ -311,7 +463,14 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     public static void handleClientShootPacket(MovementContext context, AbstractContraptionEntity ace, float yaw, float pitch, double distance) {
         if (context.temporaryData instanceof VirtualSentryArmBlockEntity virtualBE) {
             float serverDelay = context.data.getFloat("ShootDelay");
-            if (serverDelay > 0) return;
+            SentryMechanicalArm.LOGGER.info(
+                "[SentryDebug] PACKET_ARRIVED serverDelay={}",
+                serverDelay
+            );
+            if (serverDelay > 0) {
+                SentryMechanicalArm.LOGGER.info("[SentryDebug] PACKET_REJECTED reason=serverDelay>0");
+                return;
+            }
 
             Vec3 localPosCenter = VecHelper.getCenterOf(context.localPos);
             boolean isCeiling = context.state.hasProperty(SentryArmBlock.CEILING) && context.state.getValue(SentryArmBlock.CEILING);
@@ -321,7 +480,10 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             Vec3 accurateMuzzlePos = ace.toGlobalVector(localMuzzlePos, 0.0f);
 
             ItemStack gunStack = virtualBE.getHeldItem();
-            if (gunStack.isEmpty()) return;
+            if (gunStack.isEmpty()) {
+                SentryMechanicalArm.LOGGER.info("[SentryDebug] PACKET_REJECTED reason=gunEmpty");
+                return;
+            }
 
             SentryMovementBehaviour behavior = new SentryMovementBehaviour();
             boolean fired = behavior.fireGunInContraption(context, virtualBE, gunStack, accurateMuzzlePos, yaw, pitch, distance);
@@ -336,6 +498,12 @@ public class SentryMovementBehaviour implements MovementBehaviour {
                 float cooldown = 1200f / rpm;
 
                 context.data.putFloat("ShootDelay", cooldown);
+                SentryMechanicalArm.LOGGER.info(
+                    "[SentryDebug] PACKET_ACCEPTED cooldown={}",
+                    String.format("%.2f", cooldown)
+                );
+            } else {
+                SentryMechanicalArm.LOGGER.info("[SentryDebug] PACKET_REJECTED reason=fireGunFailed");
             }
         }
     }
@@ -343,6 +511,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     private boolean fireGunInContraption(MovementContext context, VirtualSentryArmBlockEntity virtualBE,
                                          ItemStack gunStack, Vec3 barrelGlobalPos, float globalYaw, float globalPitch, double distToTarget) {
         if (!(context.world instanceof ServerLevel serverLevel)) {
+            SentryMechanicalArm.LOGGER.info("[SentryDebug] FIRE_FAIL reason=notServerLevel");
             return false;
         }
 
@@ -377,11 +546,16 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         }
 
         if (!hasInternal && !hasExternal) {
+            SentryMechanicalArm.LOGGER.info("[SentryDebug] FIRE_FAIL reason=noAmmo internal={} external={} dist={}",
+                hasInternal, hasExternal, String.format("%.2f", distToTarget));
             return false;
         }
 
         FakePlayer fp = SentryFakePlayer.getForContraption(serverLevel, context.contraption.entity.getUUID(), context.localPos);
-        if (fp == null) return false;
+        if (fp == null) {
+            SentryMechanicalArm.LOGGER.info("[SentryDebug] FIRE_FAIL reason=fakePlayerNull");
+            return false;
+        }
 
         double feetY = barrelGlobalPos.y - 1.62;
         fp.setPos(barrelGlobalPos.x, feetY, barrelGlobalPos.z);
@@ -421,15 +595,36 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         boolean consumedExternal = false;
 
         if (hasInternal) {
+            if (!iGun.hasBulletInBarrel(gunStack) && currentInternalAmmo > 0) {
+                iGun.reduceCurrentAmmoCount(gunStack);
+                iGun.setBulletInBarrel(gunStack, true);
+                currentInternalAmmo--;
+            }
+
             try {
                 fp.setGameMode(GameType.SURVIVAL);
                 result = operator.shoot(() -> globalPitch, () -> globalYaw);
             } catch (Exception e) {}
 
+            if (result == ShootResult.NEED_BOLT) {
+                try {
+                    operator.bolt();
+                    result = operator.shoot(() -> globalPitch, () -> globalYaw);
+                } catch (Exception e2) {}
+            }
+
+            if (result == ShootResult.IS_BOLTING) {
+                try {
+                    operator.bolt();
+                    result = operator.shoot(() -> globalPitch, () -> globalYaw);
+                } catch (Exception e3) {}
+            }
+
             if (result == ShootResult.SUCCESS) {
                 consumedInternal = true;
             } else if (result == ShootResult.NO_AMMO) {
             } else {
+                SentryMechanicalArm.LOGGER.info("[SentryDebug] FIRE_FAIL reason=internalShootResult result={}", result);
                 return false;
             }
         }
@@ -566,6 +761,8 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             return true;
         }
 
+        SentryMechanicalArm.LOGGER.info("[SentryDebug] FIRE_FAIL reason=fallThrough hasInternal={} hasExternal={} result={}",
+            hasInternal, hasExternal, result);
         return false;
     }
 
@@ -639,9 +836,42 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         }
     }
 
+    private void spawnDebugAABB(Level level, AABB aabb, Vector3f color) {
+        if (!(level instanceof ServerLevel serverLevel)) return;
+        double step = 1.0;
+        for (double x = aabb.minX; x <= aabb.maxX; x += step) {
+            for (double y = aabb.minY; y <= aabb.maxY; y += step) {
+                for (double z = aabb.minZ; z <= aabb.maxZ; z += step) {
+                    boolean onEdge = (x == aabb.minX || x >= aabb.maxX - 0.01)
+                            || (y == aabb.minY || y >= aabb.maxY - 0.01)
+                            || (z == aabb.minZ || z >= aabb.maxZ - 0.01);
+                    if (onEdge) {
+                        serverLevel.sendParticles(new DustParticleOptions(color, 0.5f),
+                                x, y, z, 1, 0, 0, 0, 0);
+                    }
+                }
+            }
+        }
+    }
+
     private TargetResult scanForTarget(MovementContext context, VirtualSentryArmBlockEntity virtualBE,
                                        AbstractContraptionEntity contraptionEntity,
                                        Vec3 globalPos, Vec3 muzzlePos, Entity shooter) {
+        if (AeronauticsHelper.isAeronauticsLoaded() && context.world != null) {
+            Vec3 localPosCenter = VecHelper.getCenterOf(context.localPos);
+            double yOffset = isCeiling(context) ? -2.0 : 2.0;
+            Vec3 localMuzzlePos = localPosCenter.add(0, yOffset, 0);
+            Vec3 correctedGlobal = AeronauticsHelper.localToSimulatedWorld(context.world, localPosCenter, globalPos);
+            Vec3 correctedMuzzle = AeronauticsHelper.localToSimulatedWorld(context.world, localMuzzlePos, muzzlePos);
+            if (correctedGlobal.distanceToSqr(globalPos) > 0.01) {
+                SentryMechanicalArm.LOGGER.info("[AeroScan] scanForTarget coords corrected: global ({},{},{})->({},{},{})",
+                    String.format("%.1f", globalPos.x), String.format("%.1f", globalPos.y), String.format("%.1f", globalPos.z),
+                    String.format("%.1f", correctedGlobal.x), String.format("%.1f", correctedGlobal.y), String.format("%.1f", correctedGlobal.z));
+            }
+            globalPos = correctedGlobal;
+            muzzlePos = correctedMuzzle;
+        }
+
         double range = calculateContraptionRange(context, virtualBE);
         FireControlMovementBehaviour.FireControlData fcData = FireControlMovementBehaviour.findFireControl(context.contraption);
 
@@ -651,12 +881,23 @@ public class SentryMovementBehaviour implements MovementBehaviour {
 
         Level world = context.world;
         if (world == null && contraptionEntity != null) world = contraptionEntity.level();
-        if (world == null) return null;
+        if (world == null) {
+            SentryMechanicalArm.LOGGER.info("[SentryScan] world is null aborting");
+            return null;
+        }
         if (contraptionEntity != null) world = contraptionEntity.level();
 
         AABB searchBox = new AABB(globalPos, globalPos).inflate(range);
-        List<? extends LivingEntity> entities = world.getEntitiesOfClass(targetClass, searchBox);
 
+        if (AeronauticsHelper.isAeronauticsLoaded() && world instanceof ServerLevel serverLevel) {
+            spawnDebugAABB(serverLevel, searchBox, new Vector3f(0.0f, 1.0f, 0.0f));
+        }
+
+        List<? extends LivingEntity> entities = world.getEntitiesOfClass(targetClass, searchBox);
+        SentryMechanicalArm.LOGGER.info("[SentryScan] worldClass={} entityCount={} globalPos=({},{},{}) range={}",
+                world.getClass().getSimpleName(), entities.size(),
+                String.format("%.1f", globalPos.x), String.format("%.1f", globalPos.y), String.format("%.1f", globalPos.z),
+                range);
         LivingEntity bestEntity = null;
         Vec3 bestPos = null;
         double minDstSq = range * range;
@@ -676,34 +917,56 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             }
         }
 
+        int debugFilterDead = 0, debugFilterSpectator = 0, debugFilterIsContraption = 0, debugFilterShooter = 0;
+        int debugFilterValidTarget = 0, debugFilterClaimed = 0, debugFilterRange = 0, debugFilterLOS = 0;
+        int debugTotalInRange = 0;
+
         for (LivingEntity enemy : entities) {
-            if (!enemy.isAlive()) continue;
-            if (enemy.isSpectator()) continue;
-            if (enemy.is(contraptionEntity)) continue;
-            if (enemy == shooter) continue;
+            if (!enemy.isAlive()) { debugFilterDead++; continue; }
+            if (enemy.isSpectator()) { debugFilterSpectator++; continue; }
+            if (enemy.is(contraptionEntity)) { debugFilterIsContraption++; continue; }
+            if (enemy == shooter) { debugFilterShooter++; continue; }
 
             if (!isValidTarget(enemy, fcData)) {
+                debugFilterValidTarget++;
+                SentryMechanicalArm.LOGGER.info("[SentryScan] FILTERED isValidTarget=false entity={} class={} id={} pos=({},{},{})",
+                    enemy.getName().getString(), enemy.getClass().getSimpleName(), enemy.getId(),
+                    String.format("%.1f", enemy.position().x), String.format("%.1f", enemy.position().y), String.format("%.1f", enemy.position().z));
                 continue;
             }
 
-            if (TargetPool.isClaimedByOther(enemy.getId(), ownerKey)) continue;
+            if (TargetPool.isClaimedByOther(enemy.getId(), ownerKey)) { debugFilterClaimed++; continue; }
 
             double distSq = enemy.distanceToSqr(globalPos);
             if (distSq > minDstSq) {
-                if (enemy.getType() == net.minecraft.world.entity.EntityType.PHANTOM) {
-                }
+                debugFilterRange++;
+                SentryMechanicalArm.LOGGER.info("[SentryScan] FILTERED outOfRange entity={} distSq={} maxDistSq={} globalPos=({},{},{}) targetPos=({},{},{})",
+                    enemy.getName().getString(), String.format("%.1f", distSq), String.format("%.1f", minDstSq),
+                    String.format("%.1f", globalPos.x), String.format("%.1f", globalPos.y), String.format("%.1f", globalPos.z),
+                    String.format("%.1f", enemy.position().x), String.format("%.1f", enemy.position().y), String.format("%.1f", enemy.position().z));
                 continue;
             }
+            debugTotalInRange++;
 
             Vec3 hitPos = getBestTargetPos(context.world, enemy, muzzlePos, shooter);
             if (hitPos != null) {
-                if (enemy.getType() == net.minecraft.world.entity.EntityType.PHANTOM) {
-                }
                 minDstSq = distSq;
                 bestEntity = enemy;
                 bestPos = hitPos;
-            } else if (enemy.getType() == net.minecraft.world.entity.EntityType.PHANTOM) {
+            } else {
+                debugFilterLOS++;
+                SentryMechanicalArm.LOGGER.info("[SentryScan] FILTERED noLOS entity={} muzzle=({},{},{}) target=({},{},{})",
+                    enemy.getName().getString(),
+                    String.format("%.1f", muzzlePos.x), String.format("%.1f", muzzlePos.y), String.format("%.1f", muzzlePos.z),
+                    String.format("%.1f", enemy.position().x), String.format("%.1f", enemy.position().y), String.format("%.1f", enemy.position().z));
             }
+        }
+
+        if (entities.size() > 0) {
+            SentryMechanicalArm.LOGGER.info("[SentryScan] FILTER_SUMMARY totalEntities={} dead={} spectator={} isContraption={} isShooter={} invalidTarget={} claimed={} outOfRange={} inRange={} noLOS={} bestResult={}",
+                entities.size(), debugFilterDead, debugFilterSpectator, debugFilterIsContraption, debugFilterShooter,
+                debugFilterValidTarget, debugFilterClaimed, debugFilterRange, debugTotalInRange, debugFilterLOS,
+                bestEntity != null ? bestEntity.getName().getString() : "null");
         }
 
         if (bestEntity != null && bestPos != null) {
@@ -796,8 +1059,8 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             rpm = (float) (movementSpeed * 512.0);
         }
 
-        rpm = Mth.clamp(rpm, 1f, 256f);
-        float multiplier = Mth.map(rpm, 1.0f, 256.0f, 0.3f, 1.0f);
+        rpm = Mth.clamp(rpm, 1f, 192f);
+        float multiplier = Mth.map(rpm, 1.0f, 192.0f, 0.3f, 1.0f);
         return baseChaserSpeed * multiplier;
     }
 
@@ -825,8 +1088,25 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         if (result.getType() == net.minecraft.world.phys.HitResult.Type.MISS) return true;
         if (shooter instanceof AbstractContraptionEntity contraption && contraption.getContraption() != null) {
             BlockPos hitPos = result.getBlockPos();
-            return contraption.getContraption().getBlocks().containsKey(hitPos);
+            if (contraption.getContraption().getBlocks().containsKey(hitPos)) return true;
+            if (contraption.getBoundingBox().contains(Vec3.atCenterOf(hitPos))) return true;
+            SentryMechanicalArm.LOGGER.info("[SentryLOS] BLOCKED by block={} at=({},{},{}) contraptionBB={} isInBB={} distFromStart={}",
+                    level.getBlockState(hitPos).getBlock().builtInRegistryHolder().key().location(),
+                    hitPos.getX(), hitPos.getY(), hitPos.getZ(),
+                    contraption.getBoundingBox(),
+                    contraption.getBoundingBox().contains(Vec3.atCenterOf(hitPos)),
+                    String.format("%.1f", start.distanceTo(result.getLocation())));
+            return false;
         }
+        BlockPos hitPos = result.getBlockPos();
+        boolean isContraption = shooter instanceof AbstractContraptionEntity ace && ace.getContraption() != null;
+        boolean inBB = isContraption && ((AbstractContraptionEntity)shooter).getBoundingBox().contains(Vec3.atCenterOf(hitPos));
+        SentryMechanicalArm.LOGGER.info("[SentryLOS] BLOCKED by block={} at=({},{},{}) shooterType={} hasContraption={} isInBB={}",
+                level.getBlockState(hitPos).getBlock().builtInRegistryHolder().key().location(),
+                hitPos.getX(), hitPos.getY(), hitPos.getZ(),
+                shooter.getClass().getSimpleName(),
+                isContraption,
+                inBB);
         return false;
     }
 

@@ -69,6 +69,7 @@ public class NetworkHandler {
                 SentryFocusPacket.CODEC,
                 (payload, context) -> SentryFocusPacket.handle(payload, (ServerPlayer) context.player())
         );
+
     }
 
     @SuppressWarnings("unchecked")
