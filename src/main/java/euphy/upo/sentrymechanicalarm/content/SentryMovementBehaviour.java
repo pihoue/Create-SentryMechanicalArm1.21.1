@@ -1059,8 +1059,8 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             rpm = (float) (movementSpeed * 512.0);
         }
 
-        rpm = Mth.clamp(rpm, 1f, 192f);
-        float multiplier = Mth.map(rpm, 1.0f, 192.0f, 0.3f, 1.0f);
+        rpm = Mth.clamp(rpm, 1f, 64f);
+        float multiplier = Mth.map(rpm, 1.0f, 64.0f, 0.3f, 1.0f);
         return baseChaserSpeed * multiplier;
     }
 
