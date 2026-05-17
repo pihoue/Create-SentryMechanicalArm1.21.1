@@ -50,8 +50,10 @@ public record SentryFocusPacket(BlockPos fireControlPos, int targetEntityId) imp
         for (AbstractContraptionEntity ace : serverLevel.getEntitiesOfClass(AbstractContraptionEntity.class, worldBounds)) {
             Contraption contraption = ace.getContraption();
             if (contraption == null) continue;
+            if (!contraption.getBlocks().containsKey(pos)) continue;
 
             for (var actor : contraption.getActors()) {
+                if (!actor.getKey().pos().equals(pos)) continue;
                 if (!(actor.getValue().temporaryData instanceof FireControlMovementBehaviour.FireControlData fcData))
                     continue;
                 fcData.focusedEntityId = packet.targetEntityId();

@@ -86,8 +86,10 @@ public class SentryClientInputHandler {
                 for (AbstractContraptionEntity ace : player.level().getEntitiesOfClass(AbstractContraptionEntity.class, worldBounds)) {
                     Contraption contraption = ace.getContraption();
                     if (contraption == null) continue;
+                    if (!contraption.getBlocks().containsKey(fcPos)) continue;
                     for (org.apache.commons.lang3.tuple.MutablePair<?, MovementContext> actor : contraption.getActors()) {
-                        if (actor.getValue().temporaryData instanceof FireControlMovementBehaviour.FireControlData fcData) {
+                        if (actor.getValue().temporaryData instanceof FireControlMovementBehaviour.FireControlData fcData
+                                && actor.getValue().localPos.equals(fcPos)) {
                             fcData.focusedEntityId = targetId;
                             actor.getValue().data.putInt("FocusedEntityId", targetId);
                         }
