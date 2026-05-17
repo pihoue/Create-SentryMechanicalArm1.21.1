@@ -9,8 +9,7 @@
     "DeployerBlockEntityMixin",
     "DeployerHandlerMixin",
     "InteractKeyTextOverlayMixin",
-    "SawBlockEntityMixin",
-    "StationTrainDetectionMixin"
+        "SawBlockEntityMixin"
   ],
   "client": [
     "InteractKeyMixin"
