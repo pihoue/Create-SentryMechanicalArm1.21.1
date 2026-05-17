@@ -64,6 +64,9 @@ public class SentryRegistry {
     public static final DeferredHolder<Item, FireControlClipboardItem> FIRE_CONTROL_CLIPBOARD = ITEMS.register("fire_control_clipboard",
             id -> new FireControlClipboardItem(new Item.Properties()));
 
+    public static final DeferredHolder<Item, SentryScopeItem> SENTRY_SCOPE = ITEMS.register("sentry_scope",
+            id -> new SentryScopeItem(new Item.Properties().stacksTo(1)));
+
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SentryArmBlockEntity>> SENTRY_ARM_BE = BLOCK_ENTITIES.register("sentry_mechanical_arm",
             () -> BlockEntityType.Builder.of(SentryArmBlockEntity::new, SENTRY_ARM_BLOCK.get()).build(null));
 
@@ -86,6 +89,7 @@ public class SentryRegistry {
                         output.accept(new net.minecraft.world.item.ItemStack(FIRE_CONTROL_CLIPBOARD.get(), 1));
                         output.accept(new net.minecraft.world.item.ItemStack(UNFINISHED_AMMO.get(), 1));
                         output.accept(new net.minecraft.world.item.ItemStack(APPLE_PIE.get(), 1));
+                        output.accept(new net.minecraft.world.item.ItemStack(SENTRY_SCOPE.get(), 1));
                     })
                     .build());
 

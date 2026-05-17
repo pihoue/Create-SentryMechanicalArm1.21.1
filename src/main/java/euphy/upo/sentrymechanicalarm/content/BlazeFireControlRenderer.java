@@ -8,6 +8,7 @@ import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRender
 import com.simibubi.create.foundation.virtualWorld.VirtualRenderWorld;
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import euphy.upo.sentrymechanicalarm.registry.SentryPartialModels;
+import euphy.upo.sentrymechanicalarm.registry.SentryRegistry;
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.math.AngleHelper;
 import net.createmod.catnip.render.CachedBuffers;
@@ -18,9 +19,11 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -53,6 +56,10 @@ public class BlazeFireControlRenderer extends SafeBlockEntityRenderer<BlazeFireC
         ms.pushPose();
 
         renderShared(ms, null, buffer, be.getBlockState(), be.inventory.getStackInSlot(0), headY, horizontalAngle);
+
+        if (be.hasBoundScope()) {
+            renderScopeItem(ms, buffer, light, headY, horizontalAngle, be.getBlockState());
+        }
 
         if (be != null && !be.currentEmoticon.isEmpty()) {
             ms.pushPose();
@@ -144,6 +151,30 @@ public class BlazeFireControlRenderer extends SafeBlockEntityRenderer<BlazeFireC
 
             clipboardBuffer.renderInto(ms, bufferSource.getBuffer(RenderType.cutout()));
         }
+    }
+
+    public static void renderScopeItem(PoseStack ms, MultiBufferSource bufferSource, int light,
+                                        float headY, float horizontalAngle, BlockState state) {
+        ItemStack scopeStack = new ItemStack(SentryRegistry.SENTRY_SCOPE.get());
+        if (scopeStack.isEmpty()) return;
+
+        ms.pushPose();
+        float scale = 0.4f;
+        float offsetX = -0.3f;
+        float offsetY = 0.15f;
+        float offsetZ = 0.15f;
+
+        ms.translate(0.5, 0, 0.5);
+        ms.translate(0, headY, 0);
+        ms.mulPose(com.mojang.math.Axis.YN.rotation(horizontalAngle));
+        ms.translate(offsetX, offsetY, offsetZ);
+        ms.scale(scale, scale, scale);
+        ms.mulPose(com.mojang.math.Axis.XP.rotationDegrees(65));
+        ms.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(35));
+
+        ItemRenderer itemRenderer = Minecraft.getInstance().getItemRenderer();
+        itemRenderer.renderStatic(scopeStack, ItemDisplayContext.GROUND, light, 0, ms, bufferSource, Minecraft.getInstance().level, 0);
+        ms.popPose();
     }
 
     private static void draw(SuperByteBuffer buffer, float horizontalAngle, PoseStack ms, VertexConsumer vc) {

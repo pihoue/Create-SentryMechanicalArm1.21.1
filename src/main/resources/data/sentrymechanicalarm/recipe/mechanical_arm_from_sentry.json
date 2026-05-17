@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "sentrymechanicalarm:sentry_mechanical_arm"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "create:mechanical_arm"
+  }
+}

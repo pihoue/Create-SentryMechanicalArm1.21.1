@@ -25,7 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
-@EventBusSubscriber(modid = SentryMechanicalArm.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = SentryMechanicalArm.MODID, value = Dist.CLIENT)
 public class SentryShellManager {
 
     private static final List<Shell> shells = new ArrayList<>();

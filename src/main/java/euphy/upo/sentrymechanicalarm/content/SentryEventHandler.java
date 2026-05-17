@@ -33,7 +33,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.WeakHashMap;
 
-@EventBusSubscriber(modid = SentryMechanicalArm.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = SentryMechanicalArm.MODID)
 public class SentryEventHandler {
 
     public static final Logger LOGGER = LogUtils.getLogger();

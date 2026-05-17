@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-@EventBusSubscriber(modid = SentryMechanicalArm.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = SentryMechanicalArm.MODID, value = Dist.CLIENT)
 public class SentryTrailManager {
 
     private static final List<Tracer> tracers = new ArrayList<>();

@@ -27,7 +27,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 
-@EventBusSubscriber(modid = SentryMechanicalArm.MODID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = SentryMechanicalArm.MODID)
 public class SentryInteractionEvents {
 
     @SubscribeEvent(priority = EventPriority.HIGH)

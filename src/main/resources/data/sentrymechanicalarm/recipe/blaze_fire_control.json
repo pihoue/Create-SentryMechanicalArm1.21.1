@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "create:blaze_burner"
+    },
+    {
+      "item": "sentrymechanicalarm:apple_pie"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "sentrymechanicalarm:blaze_fire_control"
+  }
+}

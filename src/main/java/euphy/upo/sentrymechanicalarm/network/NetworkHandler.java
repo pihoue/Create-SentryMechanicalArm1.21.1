@@ -21,13 +21,17 @@ public class NetworkHandler {
         registrar.playToClient(
                 SentryShootPacket.TYPE,
                 SentryShootPacket.CODEC,
-                (payload, context) -> SentryShootPacket.handle(payload, null)
+                (payload, context) -> context.enqueueWork(() ->
+                    dispatchClientHandler("handleSentryShoot", SentryShootPacket.class, payload)
+                )
         );
 
         registrar.playToClient(
                 SentryContraptionShootPacket.TYPE,
                 SentryContraptionShootPacket.CODEC,
-                (payload, context) -> SentryContraptionShootPacket.handle(payload, null)
+                (payload, context) -> context.enqueueWork(() ->
+                    dispatchClientHandler("handleSentryContraptionShoot", SentryContraptionShootPacket.class, payload)
+                )
         );
 
         registrar.playToServer(
@@ -59,6 +63,22 @@ public class NetworkHandler {
                 ClipboardPacket.CODEC,
                 (payload, context) -> ClipboardPacket.handle(payload, (ServerPlayer) context.player())
         );
+
+        registrar.playToServer(
+                SentryFocusPacket.TYPE,
+                SentryFocusPacket.CODEC,
+                (payload, context) -> SentryFocusPacket.handle(payload, (ServerPlayer) context.player())
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> void dispatchClientHandler(String methodName, Class<T> packetClass, Object payload) {
+        try {
+            Class<?> handlerClass = Class.forName("euphy.upo.sentrymechanicalarm.network.ClientPacketHandler");
+            handlerClass.getMethod(methodName, packetClass).invoke(null, packetClass.cast(payload));
+        } catch (Exception e) {
+            SentryMechanicalArm.LOGGER.error("Failed to dispatch client packet handler {}", methodName, e);
+        }
     }
 
     public static void sendToNearby(Object packet, Level level, BlockPos pos) {

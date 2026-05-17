@@ -1,14 +1,17 @@
 package euphy.upo.sentrymechanicalarm.content;
 
+import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import net.createmod.catnip.animation.LerpedFloat;
 import net.createmod.catnip.animation.LerpedFloat.Chaser;
 import net.createmod.catnip.math.AngleHelper;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -21,7 +24,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import euphy.upo.sentrymechanicalarm.util.ItemNBTHelper;
 import euphy.upo.sentrymechanicalarm.registry.SentryRegistry;
-import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import org.jetbrains.annotations.NotNull;
@@ -29,7 +31,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BlazeFireControlBlockEntity extends SmartBlockEntity {
+public class BlazeFireControlBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
     private static final String[] EMOTICONS = {
             "(OwO)", "(>_<)", "^_^", "(='X'=)", "(*^▽^*)", "(¬_¬ )", "(ToT)", "(o_o)"
@@ -60,6 +62,32 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity {
 
     };
 
+    private int focusedEntityId = -1;
+    private int focusTimer = 0;
+    public static final int FOCUS_DURATION = 600;
+    private boolean hasBoundScope = false;
+
+    public boolean hasBoundScope() { return hasBoundScope; }
+    public void setHasBoundScope(boolean val) {
+        if (hasBoundScope != val) {
+            hasBoundScope = val;
+            setChanged();
+            sendData();
+        }
+    }
+
+    public int getFocusedEntityId() {
+        if (focusTimer > 0) return focusedEntityId;
+        return -1;
+    }
+
+    public void setFocusedEntity(int entityId) {
+        this.focusedEntityId = entityId;
+        this.focusTimer = FOCUS_DURATION;
+        setChanged();
+        sendData();
+    }
+
     public BlazeFireControlBlockEntity(BlockPos pos, BlockState state) {
         super(SentryRegistry.BLAZE_FIRE_CONTROL_BE.get(), pos, state);
     }
@@ -81,7 +109,9 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity {
         compound.putFloat("MsgX", msgOffsetX);
         compound.putFloat("MsgZ", msgOffsetZ);
         compound.putInt("MsgColor", msgColor);
-
+        compound.putInt("FocusedEntityId", focusedEntityId);
+        compound.putInt("FocusTimer", focusTimer);
+        compound.putBoolean("HasBoundScope", hasBoundScope);
     }
 
     @Override
@@ -96,6 +126,15 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity {
             this.msgColor = compound.getInt("MsgColor");
         } else {
             this.msgColor = 0xFFFFFF;
+        }
+        if (compound.contains("FocusedEntityId")) {
+            focusedEntityId = compound.getInt("FocusedEntityId");
+        }
+        if (compound.contains("FocusTimer")) {
+            focusTimer = compound.getInt("FocusTimer");
+        }
+        if (compound.contains("HasBoundScope")) {
+            hasBoundScope = compound.getBoolean("HasBoundScope");
         }
     }
 
@@ -133,26 +172,48 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity {
         });
     }
 
-
     @Override
-    public void tick() {
-        super.tick();
+    public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+        ChatFormatting boundColor = hasBoundScope ? ChatFormatting.GREEN : ChatFormatting.GRAY;
+        tooltip.add(Component.literal("    ")
+                .append(Component.translatable("overlay.sentrymechanicalarm.scope_status")
+                        .withStyle(ChatFormatting.GRAY))
+                .append(Component.translatable(hasBoundScope
+                        ? "message.sentrymechanicalarm.scope_bound"
+                        : "message.sentrymechanicalarm.scope_not_bound")
+                        .withStyle(boundColor)));
 
-        if (emoticonTimer > 0) {
-            emoticonTimer--;
-        }
-
-        if (!level.isClientSide) {
-            if (emoticonTimer == 0 && !currentEmoticon.isEmpty()) {
-                currentEmoticon = "";
-                notifyUpdate();
+        int sentryCount = 0;
+        if (level != null) {
+            for (BlockPos bp : BlockPos.betweenClosed(
+                    worldPosition.offset(-6, -6, -6),
+                    worldPosition.offset(6, 6, 6))) {
+                if (level.getBlockEntity(bp) instanceof SentryArmBlockEntity sentry) {
+                    BlockPos connected = sentry.getConnectedFireControl();
+                    if (connected != null && connected.equals(worldPosition)) {
+                        sentryCount++;
+                    }
+                }
             }
         }
+        tooltip.add(Component.literal("    ")
+                .append(Component.translatable("overlay.sentrymechanicalarm.connected_sentries")
+                        .withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(String.valueOf(sentryCount))
+                        .withStyle(ChatFormatting.AQUA)));
 
-        if (level.isClientSide) {
-            tickAnimation();
-            spawnIdleParticles();
+        if (!inventory.getStackInSlot(0).isEmpty()) {
+            boolean whitelist = isWhitelist();
+            tooltip.add(Component.literal("    ")
+                    .append(Component.translatable("overlay.sentrymechanicalarm.list_mode")
+                            .withStyle(ChatFormatting.GRAY))
+                    .append(Component.translatable(whitelist
+                            ? "item.sentrymechanicalarm.fire_control_clipboard.whitelist"
+                            : "item.sentrymechanicalarm.fire_control_clipboard.blacklist")
+                            .withStyle(whitelist ? ChatFormatting.GREEN : ChatFormatting.RED)));
         }
+
+        return true;
     }
 
     public void showRandomEmoticon() {
@@ -166,7 +227,6 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity {
 
         notifyUpdate();
     }
-
 
     @OnlyIn(Dist.CLIENT)
     protected void tickAnimation() {
@@ -189,7 +249,7 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity {
 
     @OnlyIn(Dist.CLIENT)
     protected void spawnIdleParticles() {
- 
+
         RandomSource random = level.getRandom();
         if (random.nextInt(7) == 0) {
             level.addParticle(ParticleTypes.END_ROD,
@@ -199,6 +259,7 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity {
                     0, 0, 0);
         }
     }
+
     public boolean isWhitelist() {
         ItemStack stack = inventory.getStackInSlot(0);
         if (!stack.isEmpty() && stack.getItem() instanceof FireControlClipboardItem) {
@@ -208,5 +269,33 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity {
         return false;
     }
 
+    @Override
+    public void tick() {
+        super.tick();
+
+        if (focusTimer > 0) {
+            focusTimer--;
+            if (focusTimer == 0) {
+                focusedEntityId = -1;
+                notifyConnectedSentries(false);
+            }
+        }
+
+        if (emoticonTimer > 0) {
+            emoticonTimer--;
+        }
+
+        if (!level.isClientSide) {
+            if (emoticonTimer == 0 && !currentEmoticon.isEmpty()) {
+                currentEmoticon = "";
+                notifyUpdate();
+            }
+        }
+
+        if (level.isClientSide) {
+            tickAnimation();
+            spawnIdleParticles();
+        }
+    }
 
 }

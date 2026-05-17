@@ -24,7 +24,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import org.joml.Vector3f;
 
-@EventBusSubscriber(modid = euphy.upo.sentrymechanicalarm.SentryMechanicalArm.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
+@EventBusSubscriber(modid = euphy.upo.sentrymechanicalarm.SentryMechanicalArm.MODID, value = Dist.CLIENT)
 public class
 SentryLinkHandler {
 

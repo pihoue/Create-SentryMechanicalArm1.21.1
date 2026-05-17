@@ -22,6 +22,7 @@ import euphy.upo.sentrymechanicalarm.network.NetworkHandler;
 import euphy.upo.sentrymechanicalarm.network.SentryClientShootPacket;
 import euphy.upo.sentrymechanicalarm.network.SentryContraptionShootPacket;
 import euphy.upo.sentrymechanicalarm.util.SentryFakePlayer;
+import euphy.upo.sentrymechanicalarm.util.TargetPool;
 import euphy.upo.sentrymechanicalarm.content.SentryArmBlock;
 import net.createmod.catnip.animation.LerpedFloat;
 import net.createmod.catnip.math.VecHelper;
@@ -74,6 +75,9 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         if (context.blockEntityData != null && context.blockEntityData.contains("Speed")) {
             rpm = Math.abs(context.blockEntityData.getFloat("Speed"));
         }
+        if (rpm <= 0f && context.motion != null) {
+            rpm = Math.max((float) (context.motion.length() * 512.0), 16f);
+        }
         virtualBE.setContraptionSpeed(rpm);
 
         if (!context.world.isClientSide) {
@@ -94,8 +98,11 @@ public class SentryMovementBehaviour implements MovementBehaviour {
                 virtualBE.read(context.blockEntityData, context.world != null ? context.world.registryAccess() : null, false);
             }
             context.temporaryData = virtualBE;
-            float rpm = context.blockEntityData != null ? context.blockEntityData.getFloat("Speed") : 0f;
-            virtualBE.setContraptionSpeed(Math.abs(rpm));
+            float rpm = context.blockEntityData != null ? Math.abs(context.blockEntityData.getFloat("Speed")) : 0f;
+            if (rpm <= 0f && context.motion != null) {
+                rpm = Math.max((float) (context.motion.length() * 512.0), 16f);
+            }
+            virtualBE.setContraptionSpeed(rpm);
         }
 
         if (!(context.temporaryData instanceof VirtualSentryArmBlockEntity virtualBE)) {
@@ -145,9 +152,11 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             virtualBE.setVirtualPos(BlockPos.containing(turretGlobalPos));
             virtualBE.setVirtualLevel(context.world);
 
-            if (context.blockEntityData != null && context.blockEntityData.contains("Speed")) {
-                float rpm = context.blockEntityData.getFloat("Speed");
-                virtualBE.setContraptionSpeed(Math.abs(rpm));
+            boolean useSpeed = context.blockEntityData != null && context.blockEntityData.contains("Speed")
+                    && Math.abs(context.blockEntityData.getFloat("Speed")) > 0f;
+            if (useSpeed) {
+                float rpm = Math.abs(context.blockEntityData.getFloat("Speed"));
+                virtualBE.setContraptionSpeed(rpm);
             } else {
                 double motionSpeed = context.motion.length();
                 float rpm = (float) (motionSpeed * 512.0);
@@ -220,6 +229,8 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         }
 
         if (!hasValidTarget) {
+            TargetPool.releaseByOwner(contraptionEntity.getUUID() + "|" + context.localPos);
+
             int scanCd = context.data.getInt("_ScanCooldown");
             scanCd--;
             context.data.putInt("_ScanCooldown", scanCd);
@@ -650,6 +661,21 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         Vec3 bestPos = null;
         double minDstSq = range * range;
 
+        String ownerKey = contraptionEntity.getUUID() + "|" + context.localPos;
+
+        if (fcData != null && fcData.focusedEntityId != -1) {
+            Entity focusEntity = world.getEntity(fcData.focusedEntityId);
+            if (focusEntity instanceof LivingEntity living && living.isAlive() && !living.isSpectator()
+                    && !living.is(contraptionEntity) && living != shooter
+                    && living.distanceToSqr(globalPos) <= range * range) {
+                Vec3 hitPos = getBestTargetPos(context.world, living, muzzlePos, shooter);
+                if (hitPos != null) {
+                    TargetPool.tryAcquire(living.getId(), ownerKey);
+                    return new TargetResult(living, hitPos);
+                }
+            }
+        }
+
         for (LivingEntity enemy : entities) {
             if (!enemy.isAlive()) continue;
             if (enemy.isSpectator()) continue;
@@ -659,6 +685,8 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             if (!isValidTarget(enemy, fcData)) {
                 continue;
             }
+
+            if (TargetPool.isClaimedByOther(enemy.getId(), ownerKey)) continue;
 
             double distSq = enemy.distanceToSqr(globalPos);
             if (distSq > minDstSq) {
@@ -679,6 +707,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         }
 
         if (bestEntity != null && bestPos != null) {
+            TargetPool.tryAcquire(bestEntity.getId(), ownerKey);
             return new TargetResult(bestEntity, bestPos);
         }
         return null;
@@ -906,6 +935,9 @@ public class SentryMovementBehaviour implements MovementBehaviour {
     public void stopMoving(MovementContext context) {
         if (context.temporaryData instanceof VirtualSentryArmBlockEntity virtualBE) {
             virtualBE.write(context.blockEntityData, context.world != null ? context.world.registryAccess() : null, false);
+        }
+        if (context.contraption != null && context.contraption.entity != null) {
+            TargetPool.releaseByOwner(context.contraption.entity.getUUID() + "|" + context.localPos);
         }
     }
 

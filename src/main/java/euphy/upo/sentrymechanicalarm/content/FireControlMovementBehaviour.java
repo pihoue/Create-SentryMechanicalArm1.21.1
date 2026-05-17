@@ -34,6 +34,7 @@ public class FireControlMovementBehaviour implements MovementBehaviour {
         public ItemStack displayItem = ItemStack.EMPTY;
         public final LerpedFloat headAngle;
         public int refreshTick;
+        public int focusedEntityId = -1;
 
         public FireControlData(float initialAngle) {
             this.headAngle = LerpedFloat.angular().startWithValue(initialAngle);
@@ -50,6 +51,11 @@ public class FireControlMovementBehaviour implements MovementBehaviour {
         if (!context.data.contains("SyncedInventory")) {
             if (context.blockEntityData != null && context.blockEntityData.contains("Inventory")) {
                 context.data.put("SyncedInventory", context.blockEntityData.getCompound("Inventory"));
+            }
+        }
+        if (!context.data.contains("FocusedEntityId")) {
+            if (context.blockEntityData != null && context.blockEntityData.contains("FocusedEntityId")) {
+                context.data.putInt("FocusedEntityId", context.blockEntityData.getInt("FocusedEntityId"));
             }
         }
     }
@@ -106,6 +112,10 @@ public class FireControlMovementBehaviour implements MovementBehaviour {
             if (tag.contains("WhitelistMode")) {
                 data.isWhitelist = tag.getBoolean("WhitelistMode");
             }
+        }
+
+        if (context.data.contains("FocusedEntityId")) {
+            data.focusedEntityId = context.data.getInt("FocusedEntityId");
         }
     }
 

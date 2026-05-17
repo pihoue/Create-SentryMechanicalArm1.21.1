@@ -45,6 +45,7 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.ContainerHelper;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Inventory;
@@ -507,9 +508,10 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         boolean isWhitelistMode = false;
         List<String> activeWhitelist = null;
 
+        BlockEntity be = null;
         if (this.connectedFireControlPos != null) {
             if (level.isLoaded(this.connectedFireControlPos)) {
-                BlockEntity be = level.getBlockEntity(this.connectedFireControlPos);
+                be = level.getBlockEntity(this.connectedFireControlPos);
 
 
                 if (be instanceof BlazeFireControlBlockEntity fc) {
@@ -529,12 +531,29 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
             }
         }
 
+    final Vec3 center = this.worldPosition.getCenter();
+        if (be instanceof BlazeFireControlBlockEntity fc2) {
+            int focusId = fc2.getFocusedEntityId();
+            if (focusId != -1) {
+                Entity focusEntity = level.getEntity(focusId);
+                if (focusEntity instanceof LivingEntity living && living.isAlive() && !living.isSpectator()
+                        && living.distanceToSqr(center) <= range * range) {
+                    Vec3 focusPos = getBestTargetPos(living);
+                    if (focusPos != null) {
+                        this.cachedTarget = living;
+                        setTargetId(living.getId());
+                        this.cachedTargetBlock = null;
+                        return;
+                    }
+                }
+            }
+        }
+
         final boolean finalStrict = isStrictControlMode;
         final boolean finalWhitelistMode = isWhitelistMode;
         final List<String> finalList = activeWhitelist;
 
         final double maxRangeSq = range * range;
-        final Vec3 center = this.worldPosition.getCenter();
         AABB area = new AABB(this.worldPosition).inflate(range);
         List<LivingEntity> potentialTargets = this.level.getEntitiesOfClass(LivingEntity.class, area, e -> {
             if (e.distanceToSqr(center) > maxRangeSq) return false;
