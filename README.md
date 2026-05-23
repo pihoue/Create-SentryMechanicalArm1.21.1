@@ -1,4 +1,4 @@
-# Create: Sentry Mechanical Arm
+# Create: Sentry Mechanical Arm（非官方移植）
 
 一个 Minecraft NeoForge 模组，让 Create 动力臂能够装备 [TaCZ](https://github.com/tacz-dev/tacz)（Timeless and Classics: Zero）枪械，作为自动化防御炮塔使用。
 
