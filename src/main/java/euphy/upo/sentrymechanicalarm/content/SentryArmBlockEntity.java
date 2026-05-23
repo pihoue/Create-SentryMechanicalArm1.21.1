@@ -162,6 +162,32 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         return lastShootTime;
     }
 
+    public boolean hasAnyAmmo() {
+        if (heldItem.isEmpty()) return false;
+        if (!(heldItem.getItem() instanceof IGun iGun)) return false;
+
+        ResourceLocation gunId = iGun.getGunId(heldItem);
+        Optional<CommonGunIndex> gunIndexOpt = TimelessAPI.getCommonGunIndex(gunId);
+        if (gunIndexOpt.isEmpty()) return false;
+        GunData gunData = gunIndexOpt.get().getGunData();
+
+        int currentAmmo = iGun.getCurrentAmmoCount(heldItem);
+        if (iGun.useInventoryAmmo(heldItem)) {
+            currentAmmo = 0;
+        }
+        if (currentAmmo > 0) return true;
+
+        ResourceLocation requiredAmmoId = gunData.getAmmoId();
+        for (ItemStack box : attachedAmmoBoxes) {
+            if (box.isEmpty() || !(box.getItem() instanceof IAmmoBox iBox)) continue;
+            if (iBox.isAllTypeCreative(box) || iBox.isCreative(box)) return true;
+            ResourceLocation boxAmmoId = iBox.getAmmoId(box);
+            if (requiredAmmoId != null && requiredAmmoId.equals(boxAmmoId) && iBox.getAmmoCount(box) > 0)
+                return true;
+        }
+        return false;
+    }
+
     public boolean addAmmoBox(ItemStack stack) {
         for (int i = 0; i < attachedAmmoBoxes.size(); i++) {
             if (attachedAmmoBoxes.get(i).isEmpty()) {
@@ -318,6 +344,15 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
     }
 
     private void sentryLogic() {
+        if (currentStatus == SentryStatus.NO_AMMO && !this.level.isClientSide) {
+            if (hasAnyAmmo()) {
+                setStatus(SentryStatus.IDLE);
+            } else {
+                sentryDeactivated();
+                return;
+            }
+        }
+
         if (!this.level.isClientSide) {
             FakePlayer fp = SentryFakePlayer.get(this);
             if (fp != null) {
