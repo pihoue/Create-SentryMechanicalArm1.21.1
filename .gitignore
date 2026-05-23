@@ -2,7 +2,7 @@
 run/
 .gradle/
 build/
-idea/
+.idea/
 *.iml
 
 # Generated
