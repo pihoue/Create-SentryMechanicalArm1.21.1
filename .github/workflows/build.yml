@@ -1,11 +1,6 @@
 name: Build
 
 on:
-  push:
-    branches: [ "1.21.1_Dev" ]
-    tags: [ "v*" ]
-  pull_request:
-    branches: [ "1.21.1_Dev" ]
   workflow_dispatch:
 
 jobs:
