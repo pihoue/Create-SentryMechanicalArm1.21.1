@@ -178,6 +178,22 @@ public class AeronauticsHelper {
     }
 
     /**
+     * Project a sub-level (contraption-local) position to world space.
+     * Wraps localToSimulatedWorld for API clarity matching SableCompanion conventions.
+     */
+    public static Vec3 projectOutOfSubLevel(Level level, Vec3 localPos, Vec3 queryWorldPos) {
+        return localToSimulatedWorld(level, localPos, queryWorldPos);
+    }
+
+    /**
+     * Convert a world-space direction vector to ship-local space for LOS checks.
+     * Wraps worldToShipSpace for API clarity matching SableCompanion conventions.
+     */
+    public static Vec3 toLocalVector(Level level, Vec3 worldPos, Vec3 worldDir) {
+        return worldToShipSpace(level, worldPos, worldDir);
+    }
+
+    /**
      * Extract yaw offset from ship rotation for rendering compensation.
      */
     public static float getShipYaw(Level level, Vec3 worldPos) {

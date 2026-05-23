@@ -113,5 +113,6 @@
   "sentrymechanicalarm.ponder.sentry_arm_move.text_1": "哨戒动力臂可以在移动结构上使用。",
   "sentrymechanicalarm.ponder.sentry_arm_move.text_2": "炮台转速正比于移动速度。",
   "sentrymechanicalarm.ponder.sentry_arm_move.text_3": "哨戒动力臂会使用结构中容器内的弹药。",
-  "sentrymechanicalarm.ponder.sentry_arm_move.text_4": "移动结构上的火控台依然有效。"
+  "sentrymechanicalarm.ponder.sentry_arm_move.text_4": "移动结构上的火控台依然有效。",
+  "message.sentrymechanicalarm.no_ammo": "无弹药"
 }

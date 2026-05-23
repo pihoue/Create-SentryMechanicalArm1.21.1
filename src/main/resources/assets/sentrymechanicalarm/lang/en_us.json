@@ -114,5 +114,6 @@
   "message.sentrymechanicalarm.scope_bound_hud": "Bound to Fire Control",
   "message.sentrymechanicalarm.can_mark": "[Middle-Click to Mark]",
   "message.sentrymechanicalarm.no_clipboard": "[No Clipboard in FC]",
-  "message.sentrymechanicalarm.list_empty": "(empty)"
+  "message.sentrymechanicalarm.list_empty": "(empty)",
+  "message.sentrymechanicalarm.no_ammo": "NO AMMO"
 }

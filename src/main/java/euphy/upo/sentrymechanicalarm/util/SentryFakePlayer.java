@@ -3,6 +3,7 @@ package euphy.upo.sentrymechanicalarm.util;
 import com.mojang.authlib.GameProfile;
 import com.tacz.guns.api.entity.IGunOperator;
 import com.tacz.guns.api.item.IGun;
+import euphy.upo.sentrymechanicalarm.compat.AeronauticsHelper;
 import euphy.upo.sentrymechanicalarm.content.SentryArmBlock;
 import euphy.upo.sentrymechanicalarm.content.SentryArmBlockEntity;
 import euphy.upo.sentrymechanicalarm.content.VirtualSentryArmBlockEntity;
@@ -138,25 +139,24 @@ public class SentryFakePlayer {
         boolean isVirtual = arm instanceof VirtualSentryArmBlockEntity;
 
         if (!isVirtual) {
-            net.minecraft.world.level.block.state.BlockState state = arm.getBlockState();
-            boolean isCeiling = false;
-            if (state.hasProperty(SentryArmBlock.CEILING)) {
-                isCeiling = state.getValue(SentryArmBlock.CEILING);
+            Vec3 worldPos;
+            if (AeronauticsHelper.isAeronauticsLoaded()) {
+                worldPos = arm.getProjectedMuzzlePos();
+            } else {
+                net.minecraft.world.level.block.state.BlockState state = arm.getBlockState();
+                boolean isCeiling = false;
+                if (state.hasProperty(SentryArmBlock.CEILING)) {
+                    isCeiling = state.getValue(SentryArmBlock.CEILING);
+                }
+                double x = arm.getBlockPos().getX() + 0.5;
+                double yOffset = isCeiling ? -2.8 : 1.0;
+                double y = arm.getBlockPos().getY() + yOffset;
+                double z = arm.getBlockPos().getZ() + 0.5;
+                worldPos = new Vec3(x, y, z);
             }
-
-            double x = arm.getBlockPos().getX() + 0.5;
-
-            double yOffset = isCeiling ? -2.8 : 1.0;
-
-            double y = arm.getBlockPos().getY() + yOffset;
-            double z = arm.getBlockPos().getZ() + 0.5;
-
-            Vec3 worldPos = new Vec3(x, y, z);
             fp.setPos(worldPos.x, worldPos.y, worldPos.z);
             fp.xo = worldPos.x; fp.yo = worldPos.y; fp.zo = worldPos.z;
             fp.xOld = worldPos.x; fp.yOld = worldPos.y; fp.zOld = worldPos.z;
-
-
         }
 
         fp.setYRot(yaw);

@@ -7,6 +7,7 @@ import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
 import euphy.upo.sentrymechanicalarm.content.FireControlClipboardItem;
 import euphy.upo.sentrymechanicalarm.content.FireControlMovementBehaviour;
+import euphy.upo.sentrymechanicalarm.content.SentryArmBlockEntity;
 import euphy.upo.sentrymechanicalarm.content.SentryScopeItem;
 import euphy.upo.sentrymechanicalarm.network.SentryFocusPacket;
 import euphy.upo.sentrymechanicalarm.network.SentryRecordTargetPacket;
@@ -127,6 +128,27 @@ public class SentryClientInputHandler {
 
             event.setCanceled(true);
         }
+    }
+
+    static boolean isPlayerLookingAtNoAmmoSentry(LocalPlayer player, double range) {
+        Vec3 eyePos = player.getEyePosition();
+        Vec3 viewVec = player.getViewVector(1.0F);
+        Vec3 traceEnd = eyePos.add(viewVec.scale(range));
+
+        BlockHitResult blockHit = player.level().clip(new ClipContext(
+                eyePos, traceEnd,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                player
+        ));
+
+        if (blockHit.getType() == HitResult.Type.MISS) return false;
+
+        BlockPos hitPos = blockHit.getBlockPos();
+        if (player.level().getBlockEntity(hitPos) instanceof SentryArmBlockEntity sentry) {
+            return sentry.getSentryStatus() == SentryArmBlockEntity.SentryStatus.NO_AMMO;
+        }
+        return false;
     }
 
     static Entity getLookedAtEntity(LocalPlayer player, double range) {

@@ -7,6 +7,7 @@ import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import euphy.upo.sentrymechanicalarm.content.BlazeFireControlBlockEntity;
 import euphy.upo.sentrymechanicalarm.content.FireControlClipboardItem;
 import euphy.upo.sentrymechanicalarm.content.FireControlMovementBehaviour;
+import euphy.upo.sentrymechanicalarm.content.SentryArmBlockEntity;
 import euphy.upo.sentrymechanicalarm.content.SentryScopeItem;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.DeltaTracker;
@@ -42,6 +43,8 @@ public class SentryHudHandler {
             .withStyle(ChatFormatting.GREEN);
     private static final Component NO_CLIPBOARD_TEXT = Component.translatable("message.sentrymechanicalarm.no_clipboard")
             .withStyle(ChatFormatting.GRAY);
+    private static final Component NO_AMMO_TEXT = Component.translatable("message.sentrymechanicalarm.no_ammo")
+            .withStyle(ChatFormatting.RED);
 
     public static final LayeredDraw.Layer OVERLAY = SentryHudHandler::renderOverlay;
 
@@ -69,6 +72,10 @@ public class SentryHudHandler {
                 renderPrompt(guiGraphics, mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), MARK_TEXT, 15);
             }
             return;
+        }
+
+        if (SentryClientInputHandler.isPlayerLookingAtNoAmmoSentry(player, 32.0)) {
+            renderPrompt(guiGraphics, mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), NO_AMMO_TEXT, 5);
         }
 
         boolean isHoldingScope = player.getMainHandItem().getItem() instanceof SentryScopeItem;
