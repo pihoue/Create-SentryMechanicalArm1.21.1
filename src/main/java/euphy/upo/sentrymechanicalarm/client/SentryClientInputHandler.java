@@ -5,6 +5,7 @@ import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
+import euphy.upo.sentrymechanicalarm.content.BlazeFireControlBlockEntity;
 import euphy.upo.sentrymechanicalarm.content.FireControlClipboardItem;
 import euphy.upo.sentrymechanicalarm.content.FireControlMovementBehaviour;
 import euphy.upo.sentrymechanicalarm.content.SentryArmBlockEntity;
@@ -117,7 +118,16 @@ public class SentryClientInputHandler {
                 }
 
                 if (foundAceId == -1) {
+                    net.minecraft.world.level.block.entity.BlockEntity be = player.level().getBlockEntity(fcPos);
+                    if (be instanceof BlazeFireControlBlockEntity fc) {
+                        if (fc.getFocusedEntityId() == targetId) {
+                            targetId = -1;
+                        }
+                    }
+                    PacketDistributor.sendToServer(new SentryFocusPacket(-1, fcPos, targetId));
                     event.setCanceled(true);
+                    player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 0.8f, 1.8f);
+                    lastFocusTime = System.currentTimeMillis();
                     return;
                 }
                 PacketDistributor.sendToServer(new SentryFocusPacket(foundAceId, foundLocalPos, targetId));

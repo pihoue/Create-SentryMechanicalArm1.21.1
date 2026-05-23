@@ -217,6 +217,20 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         Vec3 accurateMuzzlePos = contraptionEntity.toGlobalVector(localMuzzlePos, 0.0F);
         Vec3 globalPos = contraptionEntity.toGlobalVector(localPosCenter, 0.0F);
 
+        if (AeronauticsHelper.isAeronauticsLoaded() && context.world != null) {
+            Vec3 correctedGlobal = AeronauticsHelper.localToSimulatedWorld(context.world, localPosCenter, globalPos);
+            Vec3 correctedMuzzle = AeronauticsHelper.localToSimulatedWorld(context.world, localMuzzlePos, accurateMuzzlePos);
+            if (correctedGlobal.distanceToSqr(globalPos) > 0.01 || correctedMuzzle.distanceToSqr(accurateMuzzlePos) > 0.01) {
+                SentryMechanicalArm.LOGGER.info("[AeroScan] tickClientLogic coords corrected: global ({},{},{})->({},{},{}) muzzle ({},{},{})->({},{},{})",
+                    String.format("%.1f", globalPos.x), String.format("%.1f", globalPos.y), String.format("%.1f", globalPos.z),
+                    String.format("%.1f", correctedGlobal.x), String.format("%.1f", correctedGlobal.y), String.format("%.1f", correctedGlobal.z),
+                    String.format("%.1f", accurateMuzzlePos.x), String.format("%.1f", accurateMuzzlePos.y), String.format("%.1f", accurateMuzzlePos.z),
+                    String.format("%.1f", correctedMuzzle.x), String.format("%.1f", correctedMuzzle.y), String.format("%.1f", correctedMuzzle.z));
+            }
+            globalPos = correctedGlobal;
+            accurateMuzzlePos = correctedMuzzle;
+        }
+
         float currentLocalYaw = virtualBE.baseAngle.getValue();
         float currentLocalPitch = virtualBE.headAngle.getValue();
 
@@ -604,20 +618,26 @@ public class SentryMovementBehaviour implements MovementBehaviour {
             try {
                 fp.setGameMode(GameType.SURVIVAL);
                 result = operator.shoot(() -> globalPitch, () -> globalYaw);
-            } catch (Exception e) {}
+            } catch (Exception e) {
+                SentryMechanicalArm.LOGGER.warn("[SentryDebug] internalShoot failed", e);
+            }
 
             if (result == ShootResult.NEED_BOLT) {
                 try {
                     operator.bolt();
                     result = operator.shoot(() -> globalPitch, () -> globalYaw);
-                } catch (Exception e2) {}
+                } catch (Exception e2) {
+                    SentryMechanicalArm.LOGGER.warn("[SentryDebug] boltRetry failed", e2);
+                }
             }
 
             if (result == ShootResult.IS_BOLTING) {
                 try {
                     operator.bolt();
                     result = operator.shoot(() -> globalPitch, () -> globalYaw);
-                } catch (Exception e3) {}
+                } catch (Exception e3) {
+                    SentryMechanicalArm.LOGGER.warn("[SentryDebug] isBoltingRetry failed", e3);
+                }
             }
 
             if (result == ShootResult.SUCCESS) {
@@ -688,12 +708,16 @@ public class SentryMovementBehaviour implements MovementBehaviour {
                     try {
                         fp.setGameMode(GameType.SURVIVAL);
                         result = operator.shoot(() -> globalPitch, () -> globalYaw);
-                    } catch (Exception e) {}
+                    } catch (Exception e) {
+                        SentryMechanicalArm.LOGGER.warn("[SentryDebug] externalShoot failed", e);
+                    }
                     if (result == ShootResult.NEED_BOLT) {
                         operator.bolt();
                         try {
                             result = operator.shoot(() -> globalPitch, () -> globalYaw);
-                        } catch (Exception e2) {}
+                        } catch (Exception e2) {
+                            SentryMechanicalArm.LOGGER.warn("[SentryDebug] externalBoltRetry failed", e2);
+                        }
                     }
                     if (result == ShootResult.SUCCESS) {
                         consumedExternal = true;
@@ -1029,9 +1053,9 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         if (absYawDiff < 3.5f) {
             virtualBE.baseAngle.chase(currentYaw + diffYaw, 1.0f, LerpedFloat.Chaser.EXP);
         } else {
-            if (absYawDiff < 10.0f) yawSpeedBase = 0.8f;
-            else if (absYawDiff < 45.0f) yawSpeedBase = 0.4f;
-            else yawSpeedBase = 0.35f;
+            if (absYawDiff < 10.0f) yawSpeedBase = 0.44f;
+            else if (absYawDiff < 45.0f) yawSpeedBase = 0.22f;
+            else yawSpeedBase = 0.19f;
             virtualBE.baseAngle.chase(currentYaw + diffYaw, getAnimationSpeed(context, yawSpeedBase), LerpedFloat.Chaser.EXP);
         }
 
@@ -1042,7 +1066,7 @@ public class SentryMovementBehaviour implements MovementBehaviour {
         if (absPitchDiff < 3.5f) {
             virtualBE.headAngle.chase(desiredPitch, 1.0f, LerpedFloat.Chaser.EXP);
         } else {
-            float pitchSpeedBase = (absPitchDiff < 5.0f) ? 0.8f : 0.35f;
+            float pitchSpeedBase = (absPitchDiff < 5.0f) ? 0.44f : 0.19f;
             virtualBE.headAngle.chase(desiredPitch, getAnimationSpeed(context, pitchSpeedBase), LerpedFloat.Chaser.EXP);
         }
 

@@ -57,7 +57,6 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.*;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -721,7 +720,6 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                 this.cachedTargetBlock = bestBlock;
                 syncTargetBlock();
             }
-            this.cachedTargetBlock = bestBlock;
         }
     }
 
@@ -830,12 +828,6 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
             applySentryAccuracyModifier(operator, iGunFake, fakeHeldItem, gunIndex.get().getGunData());
         }
         this.triggerHoldTime++;
-        /*
-        if (gameTick % 40 == 0) {
-            LOGGER.info(
-                    "[Sentry] Tick: {} | Action: PRESS | HoldTick: {}", gameTick, this.triggerHoldTime);
-        }
-         */
         ShootResult result = ShootResult.UNKNOWN_FAIL;
         try {
             result = operator.shoot(() -> targetPitch, () -> targetYaw);
@@ -1295,8 +1287,6 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         if (heldItem.isEmpty() || !(heldItem.getItem() instanceof IGun)) {
             return superResult;
         }
-        //var player = Minecraft.getInstance().player;
-        //if (player == null) return superResult;
         addSentryGunTooltip(tooltip, heldItem);
         return true;
     }
@@ -1314,7 +1304,6 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         GunData gunData = gunIndexOpt.get().getGunData();
 
         int currentAmmo = iGun.getCurrentAmmoCount(heldItem);
-        //if (iGun.hasBulletInBarrel(heldItem)) currentAmmo++;
         if (iGun.useInventoryAmmo(heldItem)) {
             currentAmmo = 0;
         }

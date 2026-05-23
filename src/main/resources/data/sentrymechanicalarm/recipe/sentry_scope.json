@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "C": {
+      "item": "create:copper_sheet"
+    },
+    "G": {
+      "item": "minecraft:spyglass"
+    },
+    "P": {
+      "item": "create:precision_mechanism"
+    }
+  },
+  "pattern": [
+    " C ",
+    "GPC",
+    " C "
+  ],
+  "result": {
+    "count": 1,
+    "id": "sentrymechanicalarm:sentry_scope"
+  }
+}

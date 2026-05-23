@@ -1,7 +1,0 @@
-{
-  "parent": "sentrymechanicalarm:block/sentry_block",
-  "textures": {
-    "0": "sentrymechanicalarm:block/colored/sentry_block_magenta",
-    "particle": "sentrymechanicalarm:block/colored/sentry_block_magenta"
-  }
-}
