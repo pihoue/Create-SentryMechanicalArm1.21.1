@@ -1,5 +1,6 @@
 {
   "variants": {
-    "": { "model": "sentrymechanicalarm:block/sentry_mechanical_arm" }
+    "ceiling=false": { "model": "sentrymechanicalarm:block/sentry_mechanical_arm" },
+    "ceiling=true": { "model": "sentrymechanicalarm:block/sentry_mechanical_arm", "x": 180 }
   }
 }

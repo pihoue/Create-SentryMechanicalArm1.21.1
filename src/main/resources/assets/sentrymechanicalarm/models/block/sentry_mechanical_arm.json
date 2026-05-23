@@ -1,5 +1,5 @@
 {
-  "parent": "create:block/mechanical_arm/block",
+  "parent": "sentrymechanicalarm:block/mechanical_arm/block",
   "textures": {
     "particle": "sentrymechanicalarm:block/sentry_block"
   }

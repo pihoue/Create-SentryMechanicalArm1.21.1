@@ -1,5 +1,5 @@
 {
-  "parent": "create:block/blaze_burner/block",
+  "parent": "sentrymechanicalarm:block/blaze_burner/block",
   "render_type": "translucent",
   "textures": {
     "0": "sentrymechanicalarm:block/blaze_fire_control",

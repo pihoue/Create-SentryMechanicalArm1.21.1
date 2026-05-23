@@ -376,13 +376,14 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         if (!this.level.isClientSide) {
             double maxRange = this.getSentryRange();
             boolean invalid = false;
+            Vec3 rangeCheckCenter = isInSableSubLevel() ? getProjectedWorldPos() : this.worldPosition.getCenter();
 
             if (cachedTarget != null) {
                 if (++targetRescanTimer >= 300) {
                     targetRescanTimer = 0;
                     invalid = true;
                 } else if (!cachedTarget.isAlive() || cachedTarget.isRemoved() ||
-                        cachedTarget.distanceToSqr(this.worldPosition.getCenter()) > maxRange * maxRange) {
+                        cachedTarget.distanceToSqr(rangeCheckCenter) > maxRange * maxRange) {
                     invalid = true;
                 } else if (lineOfSightTicker++ >= 10) {
                     lineOfSightTicker = 0;
@@ -393,7 +394,7 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                 }
             }
             else if (cachedTargetBlock != null) {
-                if (cachedTargetBlock.distToCenterSqr(this.worldPosition.getCenter()) > maxRange * maxRange ||
+                if (cachedTargetBlock.distToCenterSqr(rangeCheckCenter) > maxRange * maxRange ||
                         !this.level.getBlockState(cachedTargetBlock).is(Blocks.TARGET)) {
                     invalid = true;
 
@@ -494,11 +495,11 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         }
         else {
             if (absYawDiff < 10.0f) {
-                yawSpeedBase = 0.8f;
+                yawSpeedBase = 0.44f;
             } else if (absYawDiff < 45.0f) {
-                yawSpeedBase = 0.4f;
+                yawSpeedBase = 0.22f;
             } else {
-                yawSpeedBase = 0.35f;
+                yawSpeedBase = 0.19f;
             }
             baseAngle.chase(currentYaw + yawDiff, getAnimationSpeed(yawSpeedBase), LerpedFloat.Chaser.EXP);
         }
@@ -515,9 +516,9 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
 
             float pitchSpeedBase;
             if (absPitchDiff < 5.0f) {
-                pitchSpeedBase = 0.8f;
+                pitchSpeedBase = 0.44f;
             } else {
-                pitchSpeedBase = 0.35f;
+                pitchSpeedBase = 0.19f;
             }
             headAngle.chase(desiredPitch, getAnimationSpeed(pitchSpeedBase), LerpedFloat.Chaser.EXP);
         }
@@ -529,13 +530,13 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
     }
 
     public Vec3 getActualMuzzlePos() {
+        if (isInSableSubLevel()) {
+            return getProjectedMuzzlePos();
+        }
         FakePlayer fp = SentryFakePlayer.get(this);
-
         if (fp != null) {
-
             return fp.getEyePosition();
         }
-
         Vec3 basePos = this.worldPosition.getCenter().add(0, 1.5, 0);
         if (isCeiling()) {
             basePos = basePos.add(0, -4.0, 0);
@@ -543,8 +544,32 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         return basePos;
     }
 
+    public boolean isInSableSubLevel() {
+        return AeronauticsHelper.isInSableSubLevel(this.level, this.worldPosition);
+    }
+
+    public Vec3 getProjectedWorldPos() {
+        if (isInSableSubLevel()) {
+            return AeronauticsHelper.sableSubLevelToWorld(this.level, this.worldPosition.getCenter());
+        }
+        return this.worldPosition.getCenter();
+    }
+
+    public Vec3 worldToSubLevel(Vec3 worldPos) {
+        if (isInSableSubLevel()) {
+            return AeronauticsHelper.sableWorldToSubLevel(this.level, worldPos, this.worldPosition);
+        }
+        return worldPos;
+    }
+
     public Vec3 getProjectedMuzzlePos() {
-        Vec3 local = getActualMuzzlePos();
+        Vec3 local = this.worldPosition.getCenter().add(0, 1.5, 0);
+        if (isCeiling()) {
+            local = local.add(0, -4.0, 0);
+        }
+        if (isInSableSubLevel()) {
+            return AeronauticsHelper.sableSubLevelToWorld(this.level, local);
+        }
         if (AeronauticsHelper.isAeronauticsLoaded()) {
             return AeronauticsHelper.projectOutOfSubLevel(this.level, local, this.worldPosition.getCenter());
         }
@@ -595,9 +620,11 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
             }
         }
 
-    final Vec3 localCenter = this.worldPosition.getCenter();
+        final Vec3 localCenter = this.worldPosition.getCenter();
     final Vec3 center;
-    if (AeronauticsHelper.isAeronauticsLoaded()) {
+    if (isInSableSubLevel()) {
+        center = getProjectedWorldPos();
+    } else if (AeronauticsHelper.isAeronauticsLoaded()) {
         center = AeronauticsHelper.projectOutOfSubLevel(this.level, localCenter, localCenter);
     } else {
         center = localCenter;
@@ -625,7 +652,12 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         final List<String> finalList = activeWhitelist;
 
         final double maxRangeSq = range * range;
-        AABB area = new AABB(this.worldPosition).inflate(range);
+        AABB area;
+        if (isInSableSubLevel()) {
+            area = new AABB(center, center).inflate(range);
+        } else {
+            area = new AABB(this.worldPosition).inflate(range);
+        }
         List<LivingEntity> potentialTargets = this.level.getEntitiesOfClass(LivingEntity.class, area, e -> {
             if (e.distanceToSqr(center) > maxRangeSq) return false;
             if (!e.isAlive() || e.isSpectator()) return false;
@@ -642,18 +674,19 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                     }
                 }
                 if (finalWhitelistMode) {
-                    return inList;
-                } else {
                     return !inList;
+                } else {
+                    return inList;
                 }
             } else {
                 return (e instanceof Enemy);
             }
         });
 
+        final Vec3 compareCenter = isInSableSubLevel() ? center : this.worldPosition.getCenter();
         LivingEntity newTarget = potentialTargets.stream()
                 .filter(target -> getBestTargetPos(target) != null)
-                .min(Comparator.comparingDouble(e -> e.distanceToSqr(this.worldPosition.getCenter())))
+                .min(Comparator.comparingDouble(e -> e.distanceToSqr(compareCenter)))
                 .orElse(null);
 
         if (newTarget != null) {
@@ -722,6 +755,16 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
     }
 
     private boolean isPointVisible(Vec3 start, Vec3 end) {
+        if (isInSableSubLevel()) {
+            Vec3 subStart = worldToSubLevel(start);
+            Vec3 subEnd = worldToSubLevel(end);
+            if (subStart.distanceToSqr(subEnd) > 1000000.0) return false;
+            BlockHitResult result = this.level.clip(new ClipContext(
+                    subStart, subEnd,
+                    ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty()
+            ));
+            return result.getType() == HitResult.Type.MISS;
+        }
         if (AeronauticsHelper.isAeronauticsLoaded()) {
             Vec3 worldDir = end.subtract(start);
             Vec3 localDir = AeronauticsHelper.toLocalVector(this.level, this.worldPosition.getCenter(), worldDir);
@@ -934,6 +977,18 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
             handleSemiAutoStrategy(ctx);
         } else {
             handleAdaptiveAutoStrategy(ctx);
+            if (ctx.actuallyFired) {
+                if (ctx.gunIndex.isPresent()) {
+                    float rpm = ctx.gunIndex.get().getGunData().getRoundsPerMinute(FireMode.AUTO);
+                    if (rpm > 0) {
+                        this.shootDelayAccumulator = 1200f / rpm;
+                    } else {
+                        this.shootDelayAccumulator = 2.0f;
+                    }
+                } else {
+                    this.shootDelayAccumulator = 2.0f;
+                }
+            }
         }
 
         if (ctx.actuallyFired) {
@@ -1076,10 +1131,11 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         if (cache == null) return;
 
         double distToTarget = 0.0;
+        Vec3 accuracyCenter = isInSableSubLevel() ? getProjectedWorldPos() : this.worldPosition.getCenter();
         if (this.cachedTarget != null) {
-            distToTarget = Math.sqrt(this.cachedTarget.distanceToSqr(this.worldPosition.getCenter()));
+            distToTarget = Math.sqrt(this.cachedTarget.distanceToSqr(accuracyCenter));
         } else if (this.cachedTargetBlock != null) {
-            distToTarget = Math.sqrt(this.cachedTargetBlock.distToCenterSqr(this.worldPosition.getCenter()));
+            distToTarget = Math.sqrt(this.cachedTargetBlock.distToCenterSqr(accuracyCenter));
         }
 
         float effectiveRange = calculateEffectiveRange(gunData);
@@ -1411,6 +1467,23 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
     private boolean isBlockVisible(Vec3 start, BlockPos targetPos) {
         Vec3 end = Vec3.atCenterOf(targetPos);
 
+        if (isInSableSubLevel()) {
+            Vec3 subStart = worldToSubLevel(start);
+            Vec3 subEnd = worldToSubLevel(end);
+            if (subStart.distanceToSqr(subEnd) > 1000000.0) return false;
+            BlockHitResult result = this.level.clip(new net.minecraft.world.level.ClipContext(
+                    subStart, subEnd,
+                    net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE,
+                    CollisionContext.empty()
+            ));
+            if (result.getType() == net.minecraft.world.phys.HitResult.Type.MISS) return true;
+            if (result.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                if (result.getBlockPos().equals(targetPos)) return true;
+            }
+            return false;
+        }
+
         BlockHitResult result = this.level.clip(new net.minecraft.world.level.ClipContext(
                 start, end,
                 net.minecraft.world.level.ClipContext.Block.COLLIDER,
@@ -1533,6 +1606,9 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
     }
     private Vec2 calculateTruthAngle(Vec3 targetPos) {
         Vec3 muzzlePos = getActualMuzzlePos();
+        if (isInSableSubLevel()) {
+            muzzlePos = muzzlePos.add(0, 0.42, 0);
+        }
 
         double finalOriginY = muzzlePos.y;
         double originX = muzzlePos.x;

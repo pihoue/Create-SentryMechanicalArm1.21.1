@@ -1,7 +1,7 @@
 {
-	"parent": "create:block/clipboard/block_empty",
+	"parent": "sentrymechanicalarm:block/clipboard/block_empty",
 	"textures": {
-		"0": "create:block/clipboard_model_filled",
-		"particle": "create:block/clipboard_model_filled"
+		"0": "sentrymechanicalarm:block/clipboard_model_filled",
+		"particle": "sentrymechanicalarm:block/clipboard_model_filled"
 	}
 }

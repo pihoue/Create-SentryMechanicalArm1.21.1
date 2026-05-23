@@ -140,7 +140,10 @@ public class SentryFakePlayer {
 
         if (!isVirtual) {
             Vec3 worldPos;
-            if (AeronauticsHelper.isAeronauticsLoaded()) {
+            if (arm.isInSableSubLevel()) {
+                Vec3 localFeet = Vec3.atBottomCenterOf(arm.getBlockPos()).add(0, 0.8, 0);
+                worldPos = AeronauticsHelper.sableSubLevelToWorld(arm.getLevel(), localFeet);
+            } else if (AeronauticsHelper.isAeronauticsLoaded()) {
                 worldPos = arm.getProjectedMuzzlePos();
             } else {
                 net.minecraft.world.level.block.state.BlockState state = arm.getBlockState();

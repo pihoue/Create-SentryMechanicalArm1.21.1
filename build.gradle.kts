@@ -52,6 +52,12 @@ repositories {
         name = "Architectury Maven"
         url = uri("https://maven.architectury.dev/releases")
     }
+    exclusiveContent {
+        forRepository {
+            maven { url = uri("https://maven.ryanhcode.dev/releases") }
+        }
+        filter { includeGroup("dev.ryanhcode.sable-companion") }
+    }
 }
 
 neoForge {
@@ -85,7 +91,7 @@ dependencies {
     implementation(libs.neoforge)
 
     // Create - slim jar without transitive deps to avoid missing Curios/CC/FTB/Architectury
-    implementation("com.simibubi.create:create-1.21.1:6.0.10-217:slim") {
+    implementation("maven.modrinth:create:6.0.10+mc1.21.1") {
         isTransitive = false
     }
 
@@ -108,6 +114,9 @@ dependencies {
 
     // TaCZ (Timeless and Classics Guns Zero) - NeoForge 1.21.1 version from Modrinth Maven
     implementation("maven.modrinth:tacz-1.21.1:1.1.8-r2")
+
+    // Sable Companion — multi-loader compatibility library, bundled via jarJar
+    implementation("dev.ryanhcode.sable-companion:sable-companion-common-1.21.1:1.6.0")
 }
 
 tasks.named<Jar>("jar") {

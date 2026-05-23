@@ -1,9 +1,11 @@
 {
-	"format_version": "1.9.0",
 	"credit": "Made with Blockbench",
 	"parent": "block/block",
 	"textures": {
-		"0": "sentrymechanicalarm:block/sentry_block"
+		"3": "sentrymechanicalarm:block/mechanical_arm",
+		"7": "sentrymechanicalarm:block/brass_block",
+		"down": "sentrymechanicalarm:block/brass_casing",
+		"particle": "sentrymechanicalarm:block/brass_casing"
 	},
 	"elements": [
 		{
@@ -11,12 +13,12 @@
 			"from": [0, 0, 0],
 			"to": [16, 6, 16],
 			"faces": {
-				"north": {"uv": [0, 13, 8, 16], "texture": "#0"},
-				"east": {"uv": [0, 13, 8, 16], "texture": "#0"},
-				"south": {"uv": [0, 13, 8, 16], "texture": "#0"},
-				"west": {"uv": [0, 13, 8, 16], "texture": "#0"},
-				"up": {"uv": [0, 0, 8, 8], "texture": "#0"},
-				"down": {"uv": [8, 0, 16, 8], "texture": "#0"}
+				"north": {"uv": [0, 8, 8, 11], "texture": "#3"},
+				"east": {"uv": [0, 8, 8, 11], "texture": "#3"},
+				"south": {"uv": [0, 8, 8, 11], "texture": "#3"},
+				"west": {"uv": [0, 8, 8, 11], "texture": "#3"},
+				"up": {"uv": [0, 0, 16, 16], "texture": "#7"},
+				"down": {"uv": [0, 0, 16, 16], "texture": "#down"}
 			}
 		}
 	],
@@ -49,7 +51,7 @@
 			"scale": [0.625, 0.625, 0.625]
 		},
 		"fixed": {
-			"rotation": [0, -180, 0],
+			"rotation": [0, 180, 0],
 			"translation": [0, 1.75, -4.5],
 			"scale": [0.5, 0.5, 0.5]
 		}
