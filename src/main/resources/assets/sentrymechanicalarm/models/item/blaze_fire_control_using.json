@@ -1,3 +1,6 @@
 {
-  "parent": "minecraft:item/spyglass"
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "sentrymechanicalarm:item/blaze_fire_control_scope"
+  }
 }

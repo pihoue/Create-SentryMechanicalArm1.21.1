@@ -13,7 +13,8 @@
     "SpyglassZoomMixin"
   ],
   "client": [
-    "InteractKeyMixin"
+    "InteractKeyMixin",
+    "SpyglassOverlayMixin"
   ],
   "injectors": {
     "defaultRequire": 1

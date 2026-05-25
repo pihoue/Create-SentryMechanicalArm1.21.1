@@ -1,9 +1,11 @@
 package euphy.upo.sentrymechanicalarm.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
+import euphy.upo.sentrymechanicalarm.content.BlazeFireControlBlockItem;
 import euphy.upo.sentrymechanicalarm.content.BlazeFireControlBlockEntity;
 import euphy.upo.sentrymechanicalarm.content.FireControlClipboardItem;
 import euphy.upo.sentrymechanicalarm.content.FireControlMovementBehaviour;
@@ -46,6 +48,9 @@ public class SentryHudHandler {
     private static final Component NO_AMMO_TEXT = Component.translatable("message.sentrymechanicalarm.no_ammo")
             .withStyle(ChatFormatting.RED);
 
+    private static final ResourceLocation SCOPE_OVERLAY = ResourceLocation.fromNamespaceAndPath(
+            SentryMechanicalArm.MODID, "textures/misc/blaze_fire_control_scope_overlay.png");
+
     public static final LayeredDraw.Layer OVERLAY = SentryHudHandler::renderOverlay;
 
     @SubscribeEvent
@@ -62,6 +67,15 @@ public class SentryHudHandler {
         if (mc.options.hideGui || mc.player == null) return;
 
         var player = mc.player;
+
+        if (player.isUsingItem() && player.getUseItem().getItem() instanceof BlazeFireControlBlockItem) {
+            int w = mc.getWindow().getGuiScaledWidth();
+            int h = mc.getWindow().getGuiScaledHeight();
+            RenderSystem.enableBlend();
+            guiGraphics.blit(SCOPE_OVERLAY, 0, 0, w, h, 0, 0, w, h, w, h);
+            RenderSystem.disableBlend();
+        }
+
         boolean isHoldingSpyglass = player.getMainHandItem().getItem() == Items.SPYGLASS;
         boolean isUsingSpyglass = player.isUsingItem() && player.getUseItem().getItem() == Items.SPYGLASS;
         boolean isOffhandClipboard = player.getOffhandItem().getItem() instanceof FireControlClipboardItem;
