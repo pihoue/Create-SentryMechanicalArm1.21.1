@@ -182,17 +182,21 @@ public class SentryClientInputHandler {
 
         AABB searchBox = player.getBoundingBox().expandTowards(viewVec.scale(actualLimit)).inflate(1.0D, 1.0D, 1.0D);
 
-        EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(
-                player,
-                eyePos,
-                traceEnd,
-                searchBox,
-                (e) -> !e.isSpectator() && e.isPickable() && e instanceof net.minecraft.world.entity.LivingEntity,
-                actualLimit * actualLimit
-        );
+        try {
+            EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(
+                    player,
+                    eyePos,
+                    traceEnd,
+                    searchBox,
+                    (e) -> !e.isSpectator() && e.isPickable() && e instanceof net.minecraft.world.entity.LivingEntity,
+                    actualLimit * actualLimit
+            );
 
-        if (entityHit != null) {
-            return entityHit.getEntity();
+            if (entityHit != null) {
+                return entityHit.getEntity();
+            }
+        } catch (Exception e) {
+            return null;
         }
 
         return null;
