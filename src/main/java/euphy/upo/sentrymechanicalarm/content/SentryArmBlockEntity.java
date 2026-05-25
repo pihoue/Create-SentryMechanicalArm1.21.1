@@ -379,12 +379,21 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
             boolean invalid = false;
             Vec3 rangeCheckCenter = isInSableSubLevel() ? getProjectedWorldPos() : this.worldPosition.getCenter();
 
+            Set<Integer> sentryMarkedIds = java.util.Collections.emptySet();
+            if (this.connectedFireControlPos != null && level.isLoaded(this.connectedFireControlPos)
+                    && level.getBlockEntity(this.connectedFireControlPos) instanceof BlazeFireControlBlockEntity fc) {
+                sentryMarkedIds = fc.getMarkedEntityIds();
+            }
+            boolean sentryHasExplosive = hasExplosiveAmmo();
+
             if (cachedTarget != null) {
                 if (++targetRescanTimer >= 300) {
                     targetRescanTimer = 0;
                     invalid = true;
                 } else if (!cachedTarget.isAlive() || cachedTarget.isRemoved() ||
                         cachedTarget.distanceToSqr(rangeCheckCenter) > maxRange * maxRange) {
+                    invalid = true;
+                } else if (!sentryHasExplosive && sentryMarkedIds.contains(cachedTarget.getId())) {
                     invalid = true;
                 } else if (lineOfSightTicker++ >= 10) {
                     lineOfSightTicker = 0;
@@ -693,8 +702,6 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         final boolean finalStrict = isStrictControlMode;
         final boolean finalWhitelistMode = isWhitelistMode;
         final List<String> finalList = activeWhitelist;
-        final Set<Integer> markedIds = be instanceof BlazeFireControlBlockEntity fc3 ? fc3.getMarkedEntityIds() : java.util.Collections.emptySet();
-        final boolean finalHasExplosive = hasExplosiveAmmo();
 
         final double maxRangeSq = range * range;
         AABB area;
@@ -706,7 +713,6 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         List<LivingEntity> potentialTargets = this.level.getEntitiesOfClass(LivingEntity.class, area, e -> {
             if (e.distanceToSqr(center) > maxRangeSq) return false;
             if (!e.isAlive() || e.isSpectator()) return false;
-            if (!finalHasExplosive && markedIds.contains(e.getId())) return false;
             if (finalStrict) {
                 if (finalList == null || finalList.isEmpty()) {
                     return finalWhitelistMode && (e instanceof Enemy);
