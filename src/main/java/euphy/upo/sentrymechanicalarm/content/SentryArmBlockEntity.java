@@ -438,34 +438,56 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         }
 
         if (currentTickBestPos != null) {
+            boolean useLocalSpace = isInSableSubLevel();
 
             if (!this.level.isClientSide || this.syncedTargetId == -1) {
-                Vec2 truthAngles = calculateTruthAngle(currentTickBestPos);
-                float trueYaw = truthAngles.x;
-                float truePitch = truthAngles.y;
-                aimAtAngle(trueYaw, truePitch);
+                Vec2 aimAngles;
+                if (useLocalSpace) {
+                    Vec3 subTarget = worldToSubLevel(currentTickBestPos);
+                    Vec3 subMuzzle = getLocalMuzzlePos();
+                    aimAngles = calculateAngleBetween(subMuzzle, subTarget);
+                } else {
+                    aimAngles = calculateTruthAngle(currentTickBestPos);
+                }
+                aimAtAngle(aimAngles.x, aimAngles.y);
             }
 
             if (!this.level.isClientSide) {
-                Vec2 truthAngles = calculateTruthAngle(currentTickBestPos);
-                float trueYaw = truthAngles.x;
-                float currentWorldYaw;
-                float currentWorldPitch;
+                float targetYaw, targetPitch;
+                float currentYaw, currentPitch;
+
+                if (useLocalSpace) {
+                    Vec3 subTarget = worldToSubLevel(currentTickBestPos);
+                    Vec3 subMuzzle = getLocalMuzzlePos();
+                    Vec2 subAngles = calculateAngleBetween(subMuzzle, subTarget);
+                    targetYaw = subAngles.x;
+                    targetPitch = subAngles.y;
+                } else {
+                    Vec2 worldAngles = calculateTruthAngle(currentTickBestPos);
+                    targetYaw = worldAngles.x;
+                    targetPitch = worldAngles.y;
+                }
 
                 if (isCeiling()) {
-                    currentWorldYaw = baseAngle.getValue();
-                    currentWorldPitch = headAngle.getValue();
+                    currentYaw = baseAngle.getValue();
+                    currentPitch = headAngle.getValue();
                 } else {
-                    currentWorldYaw = 180 - baseAngle.getValue();
-                    currentWorldPitch = -headAngle.getValue();
+                    currentYaw = 180 - baseAngle.getValue();
+                    currentPitch = -headAngle.getValue();
                 }
-                double absDiff = Math.abs(trueYaw - currentWorldYaw) % 360;
+
+                double absDiff = Math.abs(targetYaw - currentYaw) % 360;
                 double deviation = Math.min(absDiff, 360 - absDiff);
                 float currentUpperArm = upperArmAngle.getValue();
                 boolean isDeployed = currentUpperArm > 80f;
 
                 if (deviation < 1.0 && isDeployed) {
-                    fireGun(currentWorldYaw, currentWorldPitch);
+                    if (useLocalSpace) {
+                        Vec2 worldAngles = calculateTruthAngle(currentTickBestPos);
+                        fireGun(worldAngles.x, worldAngles.y);
+                    } else {
+                        fireGun(currentYaw, currentPitch);
+                    }
                 }
             }
         } else {
@@ -567,6 +589,7 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
             local = local.add(0, -4.0, 0);
         }
         if (isInSableSubLevel()) {
+            local = local.add(0, 0.42, 0);
             return AeronauticsHelper.sableSubLevelToWorld(this.level, local);
         }
         if (AeronauticsHelper.isAeronauticsLoaded()) {
@@ -1593,25 +1616,27 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         lowerArmAngle.chase(135f, animSpeed, LerpedFloat.Chaser.EXP);
         upperArmAngle.chase(90f, animSpeed, LerpedFloat.Chaser.EXP);
     }
-    private Vec2 calculateTruthAngle(Vec3 targetPos) {
-        Vec3 muzzlePos = getActualMuzzlePos();
-        if (isInSableSubLevel()) {
-            muzzlePos = muzzlePos.add(0, 0.42, 0);
-        }
-
-        double finalOriginY = muzzlePos.y;
-        double originX = muzzlePos.x;
-        double originZ = muzzlePos.z;
-
-        double diffX = targetPos.x - originX;
-        double diffY = targetPos.y - finalOriginY;
-        double diffZ = targetPos.z - originZ;
-
+    private Vec2 calculateAngleBetween(Vec3 from, Vec3 to) {
+        double diffX = to.x - from.x;
+        double diffY = to.y - from.y;
+        double diffZ = to.z - from.z;
         float yaw = (float) (Mth.atan2(diffZ, diffX) * (180D / Math.PI)) - 90.0F;
         double distHorizontal = Math.sqrt(diffX * diffX + diffZ * diffZ);
         float pitch = (float) -(Mth.atan2(diffY, distHorizontal) * (180D / Math.PI));
-
         return new Vec2(yaw, pitch);
+    }
+
+    private Vec3 getLocalMuzzlePos() {
+        Vec3 pos = Vec3.atBottomCenterOf(this.worldPosition).add(0, 1.5, 0);
+        if (isCeiling()) {
+            pos = pos.add(0, -4.0, 0);
+        }
+        return pos;
+    }
+
+    private Vec2 calculateTruthAngle(Vec3 targetPos) {
+        Vec3 muzzlePos = getActualMuzzlePos();
+        return calculateAngleBetween(muzzlePos, targetPos);
     }
 
     private void spawnDebugLine(Vec3 start, Vec3 end, org.joml.Vector3f color) {
@@ -1676,7 +1701,7 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         return connectedFireControlPos;
     }
 
-    private boolean isCeiling() {
+    public boolean isCeiling() {
         if (this.level == null) return false;
         BlockState state = this.getBlockState();
         return state.hasProperty(SentryArmBlock.CEILING) && state.getValue(SentryArmBlock.CEILING);

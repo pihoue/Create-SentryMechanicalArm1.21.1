@@ -141,8 +141,8 @@ public class SentryFakePlayer {
         if (!isVirtual) {
             Vec3 worldPos;
             if (arm.isInSableSubLevel()) {
-                Vec3 localFeet = Vec3.atBottomCenterOf(arm.getBlockPos()).add(0, 0.8, 0);
-                worldPos = AeronauticsHelper.sableSubLevelToWorld(arm.getLevel(), localFeet);
+                Vec3 muzzleWorld = arm.getProjectedMuzzlePos();
+                worldPos = new Vec3(muzzleWorld.x, muzzleWorld.y - 1.62, muzzleWorld.z);
             } else if (AeronauticsHelper.isAeronauticsLoaded()) {
                 worldPos = arm.getProjectedMuzzlePos();
             } else {
