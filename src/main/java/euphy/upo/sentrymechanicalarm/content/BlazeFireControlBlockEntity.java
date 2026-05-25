@@ -143,8 +143,6 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity implements IHa
         compound.putInt("FocusedEntityId", focusedEntityId);
         compound.putInt("FocusTimer", focusTimer);
         compound.putBoolean("HasBoundScope", hasBoundScope);
-        int[] ids = markedEntityIds.stream().mapToInt(i -> i).toArray();
-        compound.putIntArray("MarkedEntityIds", ids);
     }
 
     @Override
@@ -170,11 +168,6 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity implements IHa
             hasBoundScope = compound.getBoolean("HasBoundScope");
         }
         markedEntityIds.clear();
-        if (compound.contains("MarkedEntityIds")) {
-            for (int id : compound.getIntArray("MarkedEntityIds")) {
-                markedEntityIds.add(id);
-            }
-        }
     }
 
     public List<String> getTargetList() {
