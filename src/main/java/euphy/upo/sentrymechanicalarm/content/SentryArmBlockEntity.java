@@ -693,6 +693,8 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         final boolean finalStrict = isStrictControlMode;
         final boolean finalWhitelistMode = isWhitelistMode;
         final List<String> finalList = activeWhitelist;
+        final Set<Integer> markedIds = be instanceof BlazeFireControlBlockEntity fc3 ? fc3.getMarkedEntityIds() : java.util.Collections.emptySet();
+        final boolean finalHasExplosive = hasExplosiveAmmo();
 
         final double maxRangeSq = range * range;
         AABB area;
@@ -704,6 +706,7 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         List<LivingEntity> potentialTargets = this.level.getEntitiesOfClass(LivingEntity.class, area, e -> {
             if (e.distanceToSqr(center) > maxRangeSq) return false;
             if (!e.isAlive() || e.isSpectator()) return false;
+            if (!finalHasExplosive && markedIds.contains(e.getId())) return false;
             if (finalStrict) {
                 if (finalList == null || finalList.isEmpty()) {
                     return finalWhitelistMode && (e instanceof Enemy);
