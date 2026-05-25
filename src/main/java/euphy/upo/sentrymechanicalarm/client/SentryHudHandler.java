@@ -73,7 +73,8 @@ public class SentryHudHandler {
 
         var player = mc.player;
 
-        if (player.isUsingItem() && player.getUseItem().getItem() instanceof BlazeFireControlBlockItem) {
+        ItemStack useItem = player.getUseItem();
+        if (player.isUsingItem() && (useItem.getItem() instanceof BlazeFireControlBlockItem || useItem.getItem() instanceof SentryScopeItem)) {
             int w = mc.getWindow().getGuiScaledWidth();
             int h = mc.getWindow().getGuiScaledHeight();
             RenderSystem.setShaderTexture(0, SCOPE_OVERLAY);
