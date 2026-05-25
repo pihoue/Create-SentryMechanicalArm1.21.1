@@ -5,6 +5,7 @@ import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
+import euphy.upo.sentrymechanicalarm.compat.AeronauticsHelper;
 import euphy.upo.sentrymechanicalarm.content.BlazeFireControlBlockEntity;
 import euphy.upo.sentrymechanicalarm.content.FireControlClipboardItem;
 import euphy.upo.sentrymechanicalarm.content.FireControlMovementBehaviour;
@@ -85,20 +86,26 @@ public class SentryClientInputHandler {
                             player
                     ));
                     Vec3 hitPos = blockHit.getLocation();
+                    boolean inSubLevel = AeronauticsHelper.isInSableSubLevel(player.level(), player.blockPosition());
                     int contraptionId = -1;
                     BlockPos localPos = BlockPos.ZERO;
+                    Vec3 contraptionCheckPos = hitPos;
+                    Vec3 packetPos = hitPos;
+                    if (inSubLevel) {
+                        packetPos = AeronauticsHelper.sableSubLevelToWorld(player.level(), hitPos);
+                    }
                     for (AbstractContraptionEntity ace : player.level().getEntitiesOfClass(
                             AbstractContraptionEntity.class, new AABB(fcPos).inflate(256))) {
                         Contraption contraption = ace.getContraption();
                         if (contraption == null) continue;
-                        if (ace.getBoundingBox().inflate(2).contains(hitPos)) {
-                            Vec3 localVec = ace.toLocalVector(hitPos, 0);
+                        if (ace.getBoundingBox().inflate(2).contains(contraptionCheckPos)) {
+                            Vec3 localVec = ace.toLocalVector(contraptionCheckPos, 0);
                             contraptionId = ace.getId();
                             localPos = BlockPos.containing(localVec);
                             break;
                         }
                     }
-                    PacketDistributor.sendToServer(new SentryMarkPosPacket(fcPos, hitPos, contraptionId, localPos));
+                    PacketDistributor.sendToServer(new SentryMarkPosPacket(fcPos, packetPos, contraptionId, localPos));
                     player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.6f, 1.5f);
                     lastMarkTime = System.currentTimeMillis();
                 }
