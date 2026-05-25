@@ -73,27 +73,17 @@ public class SentryHudHandler {
         var player = mc.player;
 
         if (player.isUsingItem() && player.getUseItem().getItem() instanceof SentryScopeItem) {
-            int sw = mc.getWindow().getGuiScaledWidth();
-            int sh = mc.getWindow().getGuiScaledHeight();
-            int ow, oh;
-            if ((float)sw / sh > 4.0f / 3.0f) {
-                oh = sh;
-                ow = (int)(oh * 4.0f / 3.0f);
-            } else {
-                ow = sw;
-                oh = (int)(ow * 3.0f / 4.0f);
-            }
-            int ox = (sw - ow) / 2;
-            int oy = (sh - oh) / 2;
+            int w = mc.getWindow().getGuiScaledWidth();
+            int h = mc.getWindow().getGuiScaledHeight();
             RenderSystem.setShaderTexture(0, SCOPE_OVERLAY);
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
             RenderSystem.setShader(GameRenderer::getPositionTexShader);
             BufferBuilder bufferbuilder = RenderSystem.renderThreadTesselator().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
-            bufferbuilder.addVertex(ox, (float)(oy + oh), -0.1F).setUv(0.0F, 1.0F);
-            bufferbuilder.addVertex((float)(ox + ow), (float)(oy + oh), -0.1F).setUv(1.0F, 1.0F);
-            bufferbuilder.addVertex((float)(ox + ow), oy, -0.1F).setUv(1.0F, 0.0F);
-            bufferbuilder.addVertex(ox, oy, -0.1F).setUv(0.0F, 0.0F);
+            bufferbuilder.addVertex(0.0F, (float)h, -0.1F).setUv(0.0F, 1.0F);
+            bufferbuilder.addVertex((float)w, (float)h, -0.1F).setUv(1.0F, 1.0F);
+            bufferbuilder.addVertex((float)w, 0.0F, -0.1F).setUv(1.0F, 0.0F);
+            bufferbuilder.addVertex(0.0F, 0.0F, -0.1F).setUv(0.0F, 0.0F);
             BufferUploader.drawWithShader(bufferbuilder.build());
             RenderSystem.disableBlend();
         }
