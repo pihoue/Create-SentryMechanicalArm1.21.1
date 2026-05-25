@@ -973,7 +973,7 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
 
         if (actuallyFired && isCurrentTargetMarkedPos) {
             markedPosShotCounter++;
-            if (markedPosShotCounter >= 3) {
+            if (markedPosShotCounter >= 1) {
                 cachedMarkedPos = null;
                 cachedMarkedContraptionId = -1;
                 cachedMarkedLocalPos = null;
