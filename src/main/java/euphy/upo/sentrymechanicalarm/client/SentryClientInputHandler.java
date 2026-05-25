@@ -11,6 +11,7 @@ import euphy.upo.sentrymechanicalarm.content.FireControlMovementBehaviour;
 import euphy.upo.sentrymechanicalarm.content.SentryArmBlockEntity;
 import euphy.upo.sentrymechanicalarm.content.SentryScopeItem;
 import euphy.upo.sentrymechanicalarm.network.SentryFocusPacket;
+import euphy.upo.sentrymechanicalarm.network.SentryMarkPosPacket;
 import euphy.upo.sentrymechanicalarm.network.SentryMarkTargetPacket;
 import euphy.upo.sentrymechanicalarm.network.SentryRecordTargetPacket;
 import net.minecraft.client.Minecraft;
@@ -50,23 +51,59 @@ public class SentryClientInputHandler {
         boolean isUsingSpyglass = player.isUsingItem() && player.getUseItem().getItem() == Items.SPYGLASS;
         boolean isOffhandClipboard = player.getOffhandItem().getItem() instanceof FireControlClipboardItem;
 
-        // Middle-click: record target (spyglass + clipboard)
+        // Middle-click: record target (spyglass + clipboard) or mark coordinate (scope)
         if (event.getButton() == 2) {
             if (isHoldingSpyglass && isUsingSpyglass && isOffhandClipboard) {
                 if (System.currentTimeMillis() - lastMarkTime < 500) {
                     event.setCanceled(true);
                     return;
                 }
-
                 Entity target = getLookedAtEntity(player, 256.0);
-
                 if (target != null) {
                     PacketDistributor.sendToServer(new SentryRecordTargetPacket(target.getId()));
                     player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.6f, 1.5f);
                     lastMarkTime = System.currentTimeMillis();
                 }
-
                 event.setCanceled(true);
+                return;
+            }
+
+            if (isHoldingScope && isUsingScope) {
+                if (System.currentTimeMillis() - lastMarkTime < 500) {
+                    event.setCanceled(true);
+                    return;
+                }
+                BlockPos fcPos = SentryScopeItem.getLinkedFireControlPos(player.getMainHandItem());
+                if (fcPos != null) {
+                    Vec3 eyePos = player.getEyePosition();
+                    Vec3 viewVec = player.getViewVector(1.0F);
+                    Vec3 traceEnd = eyePos.add(viewVec.scale(256.0));
+                    BlockHitResult blockHit = player.level().clip(new ClipContext(
+                            eyePos, traceEnd,
+                            ClipContext.Block.COLLIDER,
+                            ClipContext.Fluid.NONE,
+                            player
+                    ));
+                    Vec3 hitPos = blockHit.getLocation();
+                    int contraptionId = -1;
+                    BlockPos localPos = BlockPos.ZERO;
+                    for (AbstractContraptionEntity ace : player.level().getEntitiesOfClass(
+                            AbstractContraptionEntity.class, new AABB(fcPos).inflate(256))) {
+                        Contraption contraption = ace.getContraption();
+                        if (contraption == null) continue;
+                        if (ace.getBoundingBox().inflate(2).contains(hitPos)) {
+                            Vec3 localVec = ace.toLocalVector(hitPos, 0);
+                            contraptionId = ace.getId();
+                            localPos = BlockPos.containing(localVec);
+                            break;
+                        }
+                    }
+                    PacketDistributor.sendToServer(new SentryMarkPosPacket(fcPos, hitPos, contraptionId, localPos));
+                    player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.6f, 1.5f);
+                    lastMarkTime = System.currentTimeMillis();
+                }
+                event.setCanceled(true);
+                return;
             }
             return;
         }

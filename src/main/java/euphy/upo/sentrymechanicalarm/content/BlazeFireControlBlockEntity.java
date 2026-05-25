@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import net.minecraft.world.phys.Vec3;
 
 public class BlazeFireControlBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
@@ -104,6 +105,32 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity implements IHa
     public void clearMarkedEntity() {
         if (markedEntityId != -1) {
             markedEntityId = -1;
+            setChanged();
+            sendData();
+        }
+    }
+
+    private Vec3 markedWorldPos = null;
+    private int markedContraptionEntityId = -1;
+    private BlockPos markedLocalPos = null;
+
+    public Vec3 getMarkedWorldPos() { return markedWorldPos; }
+    public int getMarkedContraptionEntityId() { return markedContraptionEntityId; }
+    public BlockPos getMarkedLocalPos() { return markedLocalPos; }
+
+    public void setMarkedPos(Vec3 worldPos, int contraptionEntityId, BlockPos localPos) {
+        this.markedWorldPos = worldPos;
+        this.markedContraptionEntityId = contraptionEntityId;
+        this.markedLocalPos = localPos;
+        setChanged();
+        sendData();
+    }
+
+    public void clearMarkedPos() {
+        if (markedWorldPos != null) {
+            markedWorldPos = null;
+            markedContraptionEntityId = -1;
+            markedLocalPos = null;
             setChanged();
             sendData();
         }

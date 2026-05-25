@@ -1,6 +1,7 @@
 package euphy.upo.sentrymechanicalarm.content;
 
 import com.mojang.logging.LogUtils;
+import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
@@ -70,6 +71,9 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
     public static final Logger LOGGER = LogUtils.getLogger();
     private static final String[] EXPLOSIVE_KEYWORDS = {"rpg", "rocket", "grenade", "missile", "explosive", "rpg7"};
     private boolean currentTargetIsMarked = false;
+    private Vec3 cachedMarkedPos = null;
+    private int cachedMarkedContraptionId = -1;
+    private BlockPos cachedMarkedLocalPos = null;
     private BlockPos connectedFireControlPos = null;
     private float lowerArmRecoilOffset = 0f;
     private BlockPos cachedTargetBlock = null;
@@ -378,13 +382,7 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
             double maxRange = this.getSentryRange();
             boolean invalid = false;
             Vec3 rangeCheckCenter = isInSableSubLevel() ? getProjectedWorldPos() : this.worldPosition.getCenter();
-
-            Set<Integer> sentryMarkedIds = java.util.Collections.emptySet();
-            if (this.connectedFireControlPos != null && level.isLoaded(this.connectedFireControlPos)
-                    && level.getBlockEntity(this.connectedFireControlPos) instanceof BlazeFireControlBlockEntity fc) {
-                sentryMarkedIds = fc.getMarkedEntityIds();
-            }
-            boolean sentryHasExplosive = hasExplosiveAmmo();
+            refreshMarkedPosFromFireControl();
 
             if (cachedTarget != null) {
                 if (++targetRescanTimer >= 300) {
@@ -392,8 +390,6 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                     invalid = true;
                 } else if (!cachedTarget.isAlive() || cachedTarget.isRemoved() ||
                         cachedTarget.distanceToSqr(rangeCheckCenter) > maxRange * maxRange) {
-                    invalid = true;
-                } else if (!sentryHasExplosive && sentryMarkedIds.contains(cachedTarget.getId())) {
                     invalid = true;
                 } else if (lineOfSightTicker++ >= 10) {
                     lineOfSightTicker = 0;
@@ -422,6 +418,13 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                         }
                     }
                 }
+            } else if (cachedMarkedPos != null && hasExplosiveAmmo()) {
+                Vec3 trackedPos = updateMarkedPos();
+                if (trackedPos != null && trackedPos.distanceToSqr(rangeCheckCenter) <= maxRange * maxRange) {
+                    currentTickBestPos = trackedPos;
+                } else {
+                    invalid = true;
+                }
             } else {
                 if (scanCooldown-- <= 0) {
                     scanCooldown = 20;
@@ -435,6 +438,9 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                     this.cachedTargetBlock = null;
                     syncTargetBlock();
                 }
+                this.cachedMarkedPos = null;
+                this.cachedMarkedContraptionId = -1;
+                this.cachedMarkedLocalPos = null;
                 setTargetId(-1);
                 scanCooldown = 0;
             }
@@ -445,6 +451,8 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                 currentTickBestPos = getBestTargetPos(cachedTarget);
             } else if (cachedTargetBlock != null) {
                 currentTickBestPos = Vec3.atCenterOf(cachedTargetBlock);
+            } else if (cachedMarkedPos != null && hasExplosiveAmmo()) {
+                currentTickBestPos = updateMarkedPos();
             }
         }
 
@@ -680,20 +688,18 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                 }
             }
 
-            if (hasExplosiveAmmo()) {
-                for (int markedId : fc2.getMarkedEntityIds()) {
-                    Entity markedEntity = level.getEntity(markedId);
-                    if (markedEntity instanceof LivingEntity living && living.isAlive() && !living.isSpectator()
-                            && living.distanceToSqr(center) <= range * range) {
-                        Vec3 markedPos = getBestTargetPos(living);
-                        if (markedPos != null) {
-                            this.cachedTarget = living;
-                            this.currentTargetIsMarked = true;
-                            setTargetId(living.getId());
-                            this.cachedTargetBlock = null;
-                            targetRescanTimer = 0;
-                            return;
-                        }
+            for (int markedId : fc2.getMarkedEntityIds()) {
+                Entity markedEntity = level.getEntity(markedId);
+                if (markedEntity instanceof LivingEntity living && living.isAlive() && !living.isSpectator()
+                        && living.distanceToSqr(center) <= range * range) {
+                    Vec3 markedPos = getBestTargetPos(living);
+                    if (markedPos != null) {
+                        this.cachedTarget = living;
+                        this.currentTargetIsMarked = true;
+                        setTargetId(living.getId());
+                        this.cachedTargetBlock = null;
+                        targetRescanTimer = 0;
+                        return;
                     }
                 }
             }
@@ -803,6 +809,41 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         if (isPointVisible(armPos, feetPos)) return feetPos;
 
         return null;
+    }
+
+    private Vec3 updateMarkedPos() {
+        if (cachedMarkedContraptionId != -1) {
+            Entity entity = level.getEntity(cachedMarkedContraptionId);
+            if (entity instanceof AbstractContraptionEntity ace && ace.isAlive()) {
+                Vec3 localCenter = Vec3.atCenterOf(cachedMarkedLocalPos);
+                Vec3 global = ace.toGlobalVector(localCenter, 1.0F);
+                cachedMarkedPos = global;
+                return global;
+            }
+            return null;
+        }
+        if (isInSableSubLevel()) {
+            Vec3 projected = AeronauticsHelper.sableSubLevelToWorld(this.level, cachedMarkedPos);
+            cachedMarkedPos = projected;
+            return projected;
+        }
+        return cachedMarkedPos;
+    }
+
+    private void refreshMarkedPosFromFireControl() {
+        if (this.connectedFireControlPos != null && level.isLoaded(this.connectedFireControlPos)
+                && level.getBlockEntity(this.connectedFireControlPos) instanceof BlazeFireControlBlockEntity fc) {
+            Vec3 wp = fc.getMarkedWorldPos();
+            if (wp != null) {
+                this.cachedMarkedPos = wp;
+                this.cachedMarkedContraptionId = fc.getMarkedContraptionEntityId();
+                this.cachedMarkedLocalPos = fc.getMarkedLocalPos();
+            } else {
+                this.cachedMarkedPos = null;
+                this.cachedMarkedContraptionId = -1;
+                this.cachedMarkedLocalPos = null;
+            }
+        }
     }
 
     private boolean hasExplosiveAmmo() {

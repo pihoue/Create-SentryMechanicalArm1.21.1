@@ -76,6 +76,12 @@ public class NetworkHandler {
                 (payload, context) -> SentryMarkTargetPacket.handle(payload, (ServerPlayer) context.player())
         );
 
+        registrar.playToServer(
+                SentryMarkPosPacket.TYPE,
+                SentryMarkPosPacket.CODEC,
+                (payload, context) -> SentryMarkPosPacket.handle(payload, (ServerPlayer) context.player())
+        );
+
     }
 
     @SuppressWarnings("unchecked")
