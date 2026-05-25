@@ -76,6 +76,8 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
     private BlockPos cachedMarkedLocalPos = null;
     private int markedPosShotCounter = 0;
     private boolean isCurrentTargetMarkedPos = false;
+    private int markedPosUpdateTimer = 0;
+    private Vec3 cachedTrackedMarkedPos = null;
     private BlockPos connectedFireControlPos = null;
     private float lowerArmRecoilOffset = 0f;
     private BlockPos cachedTargetBlock = null;
@@ -444,6 +446,7 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                 this.cachedMarkedPos = null;
                 this.cachedMarkedContraptionId = -1;
                 this.cachedMarkedLocalPos = null;
+                this.cachedTrackedMarkedPos = null;
                 setTargetId(-1);
                 scanCooldown = 0;
             }
@@ -815,21 +818,30 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
     }
 
     private Vec3 updateMarkedPos() {
+        if (++markedPosUpdateTimer < 5) {
+            if (cachedTrackedMarkedPos != null) return cachedTrackedMarkedPos;
+            markedPosUpdateTimer = 5;
+        }
+        markedPosUpdateTimer = 0;
         if (cachedMarkedContraptionId != -1) {
             Entity entity = level.getEntity(cachedMarkedContraptionId);
             if (entity instanceof AbstractContraptionEntity ace && ace.isAlive()) {
                 Vec3 localCenter = Vec3.atCenterOf(cachedMarkedLocalPos);
                 Vec3 global = ace.toGlobalVector(localCenter, 1.0F);
                 cachedMarkedPos = global;
+                cachedTrackedMarkedPos = global;
                 return global;
             }
+            cachedTrackedMarkedPos = null;
             return null;
         }
         if (isInSableSubLevel()) {
             Vec3 projected = AeronauticsHelper.sableSubLevelToWorld(this.level, cachedMarkedPos);
             cachedMarkedPos = projected;
+            cachedTrackedMarkedPos = projected;
             return projected;
         }
+        cachedTrackedMarkedPos = cachedMarkedPos;
         return cachedMarkedPos;
     }
 
@@ -848,6 +860,7 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                 this.cachedMarkedPos = null;
                 this.cachedMarkedContraptionId = -1;
                 this.cachedMarkedLocalPos = null;
+                this.cachedTrackedMarkedPos = null;
                 markedPosShotCounter = 0;
             }
         }
@@ -921,22 +934,6 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
     private void fireGun(float targetYaw, float targetPitch) {
         if (heldItem.isEmpty() || this.level.isClientSide) return;
 
-        if (isCurrentTargetMarkedPos) {
-            markedPosShotCounter++;
-            if (markedPosShotCounter >= 3) {
-                cachedMarkedPos = null;
-                cachedMarkedContraptionId = -1;
-                cachedMarkedLocalPos = null;
-                markedPosShotCounter = 0;
-                isCurrentTargetMarkedPos = false;
-                if (connectedFireControlPos != null && level.isLoaded(connectedFireControlPos)
-                        && level.getBlockEntity(connectedFireControlPos) instanceof BlazeFireControlBlockEntity fc) {
-                    fc.clearMarkedPos();
-                }
-                return;
-            }
-        }
-
         FakePlayer fakePlayer = SentryFakePlayer.get(this);
         if (fakePlayer == null) return;
 
@@ -973,6 +970,23 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         }
 
         boolean actuallyFired = SentryFakePlayer.checkAndClearFired(fakePlayer);
+
+        if (actuallyFired && isCurrentTargetMarkedPos) {
+            markedPosShotCounter++;
+            if (markedPosShotCounter >= 3) {
+                cachedMarkedPos = null;
+                cachedMarkedContraptionId = -1;
+                cachedMarkedLocalPos = null;
+                cachedTrackedMarkedPos = null;
+                markedPosShotCounter = 0;
+                isCurrentTargetMarkedPos = false;
+                if (connectedFireControlPos != null && level.isLoaded(connectedFireControlPos)
+                        && level.getBlockEntity(connectedFireControlPos) instanceof BlazeFireControlBlockEntity fc) {
+                    fc.clearMarkedPos();
+                }
+                return;
+            }
+        }
 
         FireContext ctx = new FireContext(
                 fakePlayer, heldItem, fakeHeldItem, iGunFake, operator, dataHolder, gunIndex, actuallyFired, mode
