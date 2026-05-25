@@ -15,6 +15,7 @@ import euphy.upo.sentrymechanicalarm.content.FireControlMovementBehaviour;
 import euphy.upo.sentrymechanicalarm.content.SentryArmBlockEntity;
 import euphy.upo.sentrymechanicalarm.content.SentryScopeItem;
 import net.minecraft.ChatFormatting;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -135,12 +136,44 @@ public class SentryHudHandler {
         int x = screenWidth - 10;
         int y = 10;
 
+        BlockEntity be = level.getBlockEntity(fcPos);
+        if (be instanceof BlazeFireControlBlockEntity fc) {
+            Vec3 markedPos = fc.getMarkedWorldPos();
+            if (markedPos != null) {
+                Component coordTitle = Component.literal("--- 坐标攻击 ---")
+                        .withStyle(ChatFormatting.GOLD);
+                guiGraphics.drawString(mc.font, coordTitle, x - mc.font.width(coordTitle), y, 0xFFFFFF, true);
+                y += mc.font.lineHeight + 2;
+
+                Component posText = Component.literal(String.format("X: %.1f", markedPos.x))
+                        .withStyle(ChatFormatting.WHITE);
+                guiGraphics.drawString(mc.font, posText, x - mc.font.width(posText), y, 0xFFFFFF, true);
+                y += mc.font.lineHeight + 1;
+                posText = Component.literal(String.format("Y: %.1f", markedPos.y))
+                        .withStyle(ChatFormatting.WHITE);
+                guiGraphics.drawString(mc.font, posText, x - mc.font.width(posText), y, 0xFFFFFF, true);
+                y += mc.font.lineHeight + 1;
+                posText = Component.literal(String.format("Z: %.1f", markedPos.z))
+                        .withStyle(ChatFormatting.WHITE);
+                guiGraphics.drawString(mc.font, posText, x - mc.font.width(posText), y, 0xFFFFFF, true);
+                y += mc.font.lineHeight + 2;
+
+                int markedEntityId = fc.getMarkedEntityIds().isEmpty() ? -1 : fc.getMarkedEntityIds().iterator().next();
+                if (markedEntityId != -1) {
+                    Component markedEnt = Component.literal("已标记: 实体 #" + markedEntityId)
+                            .withStyle(ChatFormatting.GRAY);
+                    guiGraphics.drawString(mc.font, markedEnt, x - mc.font.width(markedEnt), y, 0xFFFFFF, true);
+                    y += mc.font.lineHeight + 2;
+                }
+                return;
+            }
+        }
+
         List<String> targetList = null;
         boolean isWhitelist = false;
         boolean hasClipboard = false;
         int focusedEntityId = -1;
 
-        BlockEntity be = level.getBlockEntity(fcPos);
         if (be instanceof BlazeFireControlBlockEntity fc) {
             if (!fc.inventory.getStackInSlot(0).isEmpty()) {
                 hasClipboard = true;

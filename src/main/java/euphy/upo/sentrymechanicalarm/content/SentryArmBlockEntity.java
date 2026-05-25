@@ -74,6 +74,8 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
     private Vec3 cachedMarkedPos = null;
     private int cachedMarkedContraptionId = -1;
     private BlockPos cachedMarkedLocalPos = null;
+    private int markedPosShotCounter = 0;
+    private boolean isCurrentTargetMarkedPos = false;
     private BlockPos connectedFireControlPos = null;
     private float lowerArmRecoilOffset = 0f;
     private BlockPos cachedTargetBlock = null;
@@ -422,6 +424,7 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                 Vec3 trackedPos = updateMarkedPos();
                 if (trackedPos != null && trackedPos.distanceToSqr(rangeCheckCenter) <= maxRange * maxRange) {
                     currentTickBestPos = trackedPos;
+                    isCurrentTargetMarkedPos = true;
                 } else {
                     invalid = true;
                 }
@@ -835,6 +838,9 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                 && level.getBlockEntity(this.connectedFireControlPos) instanceof BlazeFireControlBlockEntity fc) {
             Vec3 wp = fc.getMarkedWorldPos();
             if (wp != null) {
+                if (!wp.equals(this.cachedMarkedPos)) {
+                    markedPosShotCounter = 0;
+                }
                 this.cachedMarkedPos = wp;
                 this.cachedMarkedContraptionId = fc.getMarkedContraptionEntityId();
                 this.cachedMarkedLocalPos = fc.getMarkedLocalPos();
@@ -842,6 +848,7 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                 this.cachedMarkedPos = null;
                 this.cachedMarkedContraptionId = -1;
                 this.cachedMarkedLocalPos = null;
+                markedPosShotCounter = 0;
             }
         }
     }
@@ -913,6 +920,22 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
 
     private void fireGun(float targetYaw, float targetPitch) {
         if (heldItem.isEmpty() || this.level.isClientSide) return;
+
+        if (isCurrentTargetMarkedPos) {
+            markedPosShotCounter++;
+            if (markedPosShotCounter >= 3) {
+                cachedMarkedPos = null;
+                cachedMarkedContraptionId = -1;
+                cachedMarkedLocalPos = null;
+                markedPosShotCounter = 0;
+                isCurrentTargetMarkedPos = false;
+                if (connectedFireControlPos != null && level.isLoaded(connectedFireControlPos)
+                        && level.getBlockEntity(connectedFireControlPos) instanceof BlazeFireControlBlockEntity fc) {
+                    fc.clearMarkedPos();
+                }
+                return;
+            }
+        }
 
         FakePlayer fakePlayer = SentryFakePlayer.get(this);
         if (fakePlayer == null) return;

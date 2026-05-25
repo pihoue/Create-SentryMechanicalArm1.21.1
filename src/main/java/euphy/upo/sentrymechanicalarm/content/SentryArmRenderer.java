@@ -99,7 +99,7 @@ public class SentryArmRenderer extends KineticBlockEntityRenderer<SentryArmBlock
         float upperArmAngle = be.upperArmAngle.getValue(pt) - 90.0F;
         float headAngle = be.headAngle.getValue(pt);
 
-        if (AeronauticsHelper.isAeronauticsLoaded() && be.getLevel() != null) {
+        if (AeronauticsHelper.isAeronauticsLoaded() && be.getLevel() != null && !be.isInSableSubLevel()) {
             Vec3 worldPos = be.getBlockPos().getCenter();
             float shipYaw = AeronauticsHelper.getShipYaw(be.getLevel(), worldPos);
             float shipRoll = AeronauticsHelper.getShipRoll(be.getLevel(), worldPos);

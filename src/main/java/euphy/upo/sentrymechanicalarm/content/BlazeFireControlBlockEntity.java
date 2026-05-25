@@ -98,6 +98,7 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity implements IHa
 
     public void setMarkedEntityId(int entityId) {
         this.markedEntityId = entityId;
+        clearMarkedPos();
         setChanged();
         sendData();
     }
@@ -122,6 +123,7 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity implements IHa
         this.markedWorldPos = worldPos;
         this.markedContraptionEntityId = contraptionEntityId;
         this.markedLocalPos = localPos;
+        clearMarkedEntity();
         setChanged();
         sendData();
     }
