@@ -70,6 +70,12 @@ public class NetworkHandler {
                 (payload, context) -> SentryFocusPacket.handle(payload, (ServerPlayer) context.player())
         );
 
+        registrar.playToServer(
+                SentryMarkTargetPacket.TYPE,
+                SentryMarkTargetPacket.CODEC,
+                (payload, context) -> SentryMarkTargetPacket.handle(payload, (ServerPlayer) context.player())
+        );
+
     }
 
     @SuppressWarnings("unchecked")

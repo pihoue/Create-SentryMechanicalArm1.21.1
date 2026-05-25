@@ -11,6 +11,7 @@ import euphy.upo.sentrymechanicalarm.content.FireControlMovementBehaviour;
 import euphy.upo.sentrymechanicalarm.content.SentryArmBlockEntity;
 import euphy.upo.sentrymechanicalarm.content.SentryScopeItem;
 import euphy.upo.sentrymechanicalarm.network.SentryFocusPacket;
+import euphy.upo.sentrymechanicalarm.network.SentryMarkTargetPacket;
 import euphy.upo.sentrymechanicalarm.network.SentryRecordTargetPacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -89,6 +90,8 @@ public class SentryClientInputHandler {
                 int targetId = target.getId();
                 int foundAceId = -1;
                 BlockPos foundLocalPos = fcPos;
+
+                PacketDistributor.sendToServer(new SentryMarkTargetPacket(fcPos, targetId, true));
 
                 net.minecraft.world.phys.AABB searchBounds = new net.minecraft.world.phys.AABB(fcPos).inflate(256);
                 for (AbstractContraptionEntity ace : player.level().getEntitiesOfClass(AbstractContraptionEntity.class, searchBounds)) {

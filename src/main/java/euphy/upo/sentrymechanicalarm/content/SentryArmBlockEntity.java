@@ -68,6 +68,8 @@ import java.util.*;
 
 public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmoStorage {
     public static final Logger LOGGER = LogUtils.getLogger();
+    private static final String[] EXPLOSIVE_KEYWORDS = {"rpg", "rocket", "grenade", "missile", "explosive", "rpg7"};
+    private boolean currentTargetIsMarked = false;
     private BlockPos connectedFireControlPos = null;
     private float lowerArmRecoilOffset = 0f;
     private BlockPos cachedTargetBlock = null;
@@ -660,10 +662,29 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
                     Vec3 focusPos = getBestTargetPos(living);
                     if (focusPos != null) {
                         this.cachedTarget = living;
+                        this.currentTargetIsMarked = false;
                         setTargetId(living.getId());
                         this.cachedTargetBlock = null;
                         targetRescanTimer = 0;
                         return;
+                    }
+                }
+            }
+
+            if (hasExplosiveAmmo()) {
+                for (int markedId : fc2.getMarkedEntityIds()) {
+                    Entity markedEntity = level.getEntity(markedId);
+                    if (markedEntity instanceof LivingEntity living && living.isAlive() && !living.isSpectator()
+                            && living.distanceToSqr(center) <= range * range) {
+                        Vec3 markedPos = getBestTargetPos(living);
+                        if (markedPos != null) {
+                            this.cachedTarget = living;
+                            this.currentTargetIsMarked = true;
+                            setTargetId(living.getId());
+                            this.cachedTargetBlock = null;
+                            targetRescanTimer = 0;
+                            return;
+                        }
                     }
                 }
             }
@@ -773,6 +794,26 @@ public class SentryArmBlockEntity extends KineticBlockEntity implements IArmAmmo
         if (isPointVisible(armPos, feetPos)) return feetPos;
 
         return null;
+    }
+
+    private boolean hasExplosiveAmmo() {
+        if (heldItem.isEmpty() || !(heldItem.getItem() instanceof IGun iGun)) return false;
+        ResourceLocation gunId = iGun.getGunId(heldItem);
+        Optional<CommonGunIndex> index = TimelessAPI.getCommonGunIndex(gunId);
+        if (index.isPresent()) {
+            ResourceLocation ammoId = index.get().getGunData().getAmmoId();
+            if (ammoId != null) {
+                String path = ammoId.getPath().toLowerCase();
+                for (String kw : EXPLOSIVE_KEYWORDS) {
+                    if (path.contains(kw)) return true;
+                }
+            }
+            String gunPath = gunId.getPath().toLowerCase();
+            for (String kw : EXPLOSIVE_KEYWORDS) {
+                if (gunPath.contains(kw)) return true;
+            }
+        }
+        return false;
     }
 
     private boolean isPointVisible(Vec3 start, Vec3 end) {
