@@ -162,6 +162,15 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity implements IHa
         compound.putInt("FocusedEntityId", focusedEntityId);
         compound.putInt("FocusTimer", focusTimer);
         compound.putBoolean("HasBoundScope", hasBoundScope);
+        if (markedWorldPos != null) {
+            compound.putDouble("MarkedPosX", markedWorldPos.x);
+            compound.putDouble("MarkedPosY", markedWorldPos.y);
+            compound.putDouble("MarkedPosZ", markedWorldPos.z);
+            compound.putInt("MarkedContraptionId", markedContraptionEntityId);
+            if (markedLocalPos != null) {
+                compound.putLong("MarkedLocalPos", markedLocalPos.asLong());
+            }
+        }
     }
 
     @Override
@@ -187,6 +196,19 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity implements IHa
             hasBoundScope = compound.getBoolean("HasBoundScope");
         }
         markedEntityId = -1;
+        if (compound.contains("MarkedPosX")) {
+            markedWorldPos = new Vec3(compound.getDouble("MarkedPosX"), compound.getDouble("MarkedPosY"), compound.getDouble("MarkedPosZ"));
+            markedContraptionEntityId = compound.getInt("MarkedContraptionId");
+            if (compound.contains("MarkedLocalPos")) {
+                markedLocalPos = BlockPos.of(compound.getLong("MarkedLocalPos"));
+            } else {
+                markedLocalPos = null;
+            }
+        } else {
+            markedWorldPos = null;
+            markedContraptionEntityId = -1;
+            markedLocalPos = null;
+        }
     }
 
     public List<String> getTargetList() {
