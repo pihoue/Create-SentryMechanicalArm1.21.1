@@ -9,7 +9,6 @@ import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-import euphy.upo.sentrymechanicalarm.content.BlazeFireControlBlockItem;
 import euphy.upo.sentrymechanicalarm.content.BlazeFireControlBlockEntity;
 import euphy.upo.sentrymechanicalarm.content.FireControlClipboardItem;
 import euphy.upo.sentrymechanicalarm.content.FireControlMovementBehaviour;
@@ -73,8 +72,7 @@ public class SentryHudHandler {
 
         var player = mc.player;
 
-        ItemStack useItem = player.getUseItem();
-        if (player.isUsingItem() && (useItem.getItem() instanceof BlazeFireControlBlockItem || useItem.getItem() instanceof SentryScopeItem)) {
+        if (player.isUsingItem() && player.getUseItem().getItem() instanceof SentryScopeItem) {
             int w = mc.getWindow().getGuiScaledWidth();
             int h = mc.getWindow().getGuiScaledHeight();
             RenderSystem.setShaderTexture(0, SCOPE_OVERLAY);
