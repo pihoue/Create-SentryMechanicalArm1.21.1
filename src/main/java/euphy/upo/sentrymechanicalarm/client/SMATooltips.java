@@ -12,6 +12,7 @@ public class SMATooltips {
 
     public static void init() {
         register(SentryRegistry.FIRE_CONTROL_CLIPBOARD.getId(), SentryRegistry.FIRE_CONTROL_CLIPBOARD.get());
+        register(SentryRegistry.SENTRY_SCOPE.getId(), SentryRegistry.SENTRY_SCOPE.get());
     }
 
     private static void register(ResourceLocation id, net.minecraft.world.item.Item item) {
