@@ -29,7 +29,7 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -68,7 +68,7 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity implements IHa
     private int focusTimer = 0;
     public static final int FOCUS_DURATION = 600;
     private boolean hasBoundScope = false;
-    private final Set<Integer> markedEntityIds = new HashSet<>();
+    private int markedEntityId = -1;
 
     public boolean hasBoundScope() { return hasBoundScope; }
     public void setHasBoundScope(boolean val) {
@@ -91,29 +91,19 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity implements IHa
         sendData();
     }
 
-    public Set<Integer> getMarkedEntityIds() { return markedEntityIds; }
-
-    public boolean addMarkedEntityId(int entityId) {
-        if (markedEntityIds.add(entityId)) {
-            setChanged();
-            sendData();
-            return true;
-        }
-        return false;
+    public Set<Integer> getMarkedEntityIds() {
+        return markedEntityId == -1 ? Collections.emptySet() : Collections.singleton(markedEntityId);
     }
 
-    public boolean removeMarkedEntityId(int entityId) {
-        if (markedEntityIds.remove(entityId)) {
-            setChanged();
-            sendData();
-            return true;
-        }
-        return false;
+    public void setMarkedEntityId(int entityId) {
+        this.markedEntityId = entityId;
+        setChanged();
+        sendData();
     }
 
-    public void clearMarkedEntities() {
-        if (!markedEntityIds.isEmpty()) {
-            markedEntityIds.clear();
+    public void clearMarkedEntity() {
+        if (markedEntityId != -1) {
+            markedEntityId = -1;
             setChanged();
             sendData();
         }
@@ -167,7 +157,7 @@ public class BlazeFireControlBlockEntity extends SmartBlockEntity implements IHa
         if (compound.contains("HasBoundScope")) {
             hasBoundScope = compound.getBoolean("HasBoundScope");
         }
-        markedEntityIds.clear();
+        markedEntityId = -1;
     }
 
     public List<String> getTargetList() {

@@ -33,11 +33,7 @@ public record SentryMarkTargetPacket(BlockPos fcPos, int entityId, boolean add) 
         if (!level.isLoaded(pos)) return;
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof BlazeFireControlBlockEntity fc) {
-            if (packet.add()) {
-                fc.addMarkedEntityId(packet.entityId());
-            } else {
-                fc.removeMarkedEntityId(packet.entityId());
-            }
+            fc.setMarkedEntityId(packet.entityId());
         }
     }
 }
