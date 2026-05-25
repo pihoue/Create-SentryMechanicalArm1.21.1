@@ -1,6 +1,10 @@
 package euphy.upo.sentrymechanicalarm.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.BufferUploader;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
@@ -16,6 +20,7 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.LayeredDraw;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -71,8 +76,16 @@ public class SentryHudHandler {
         if (player.isUsingItem() && player.getUseItem().getItem() instanceof BlazeFireControlBlockItem) {
             int w = mc.getWindow().getGuiScaledWidth();
             int h = mc.getWindow().getGuiScaledHeight();
+            RenderSystem.setShaderTexture(0, SCOPE_OVERLAY);
             RenderSystem.enableBlend();
-            guiGraphics.blit(SCOPE_OVERLAY, 0, 0, w, h, 0, 0, w, h, w, h);
+            RenderSystem.defaultBlendFunc();
+            RenderSystem.setShader(GameRenderer::getPositionTexShader);
+            BufferBuilder bufferbuilder = RenderSystem.renderThreadTesselator().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+            bufferbuilder.addVertex(0.0F, (float)h, -0.1F).setUv(0.0F, 1.0F);
+            bufferbuilder.addVertex((float)w, (float)h, -0.1F).setUv(1.0F, 1.0F);
+            bufferbuilder.addVertex((float)w, 0.0F, -0.1F).setUv(1.0F, 0.0F);
+            bufferbuilder.addVertex(0.0F, 0.0F, -0.1F).setUv(0.0F, 0.0F);
+            BufferUploader.drawWithShader(bufferbuilder.build());
             RenderSystem.disableBlend();
         }
 
