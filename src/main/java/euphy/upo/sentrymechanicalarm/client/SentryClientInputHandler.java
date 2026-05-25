@@ -182,6 +182,10 @@ public class SentryClientInputHandler {
 
         AABB searchBox = player.getBoundingBox().expandTowards(viewVec.scale(actualLimit)).inflate(1.0D, 1.0D, 1.0D);
 
+        if (searchBox.getXsize() > 1000 || searchBox.getYsize() > 1000 || searchBox.getZsize() > 1000) {
+            return null;
+        }
+
         try {
             EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(
                     player,
