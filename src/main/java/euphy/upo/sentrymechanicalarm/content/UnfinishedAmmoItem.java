@@ -13,7 +13,7 @@ public class UnfinishedAmmoItem extends SequencedAssemblyItem {
 
     private Item cachedTacZAmmoItem = null;
 
-    public static final int MAX_COPPER_SHEETS = 3;
+    public static final int MAX_COPPER_SHEETS = 10;
 
     public UnfinishedAmmoItem(Properties properties) {
         super(properties.stacksTo(64));

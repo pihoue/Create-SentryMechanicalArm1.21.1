@@ -49,16 +49,16 @@ public class BeltDeployerCallbacksMixin {
         ItemStack beltStack = transported.stack;
         if (beltStack.isEmpty()) return false;
 
+        if (beltStack.getItem() != SentryRegistry.UNFINISHED_AMMO.get()) return false;
+        if (beltStack.has(AllDataComponents.SEQUENCED_ASSEMBLY)) return false;
+
         boolean isCopper = handStack.getItem() == AllItems.COPPER_SHEET.get();
         boolean isGunpowder = handStack.getItem() == Items.GUNPOWDER;
 
-        if (isCopper || isGunpowder) {
-            if (beltStack.getItem() != SentryRegistry.UNFINISHED_AMMO.get()) return false;
-            if (beltStack.has(AllDataComponents.SEQUENCED_ASSEMBLY)) return false;
-            if (isCopper && UnfinishedAmmoItem.getCopperSheets(beltStack) >= UnfinishedAmmoItem.MAX_COPPER_SHEETS) return false;
-            if (isGunpowder && UnfinishedAmmoItem.hasGunpowder(beltStack)) return false;
-            return true;
-        }
+        if (isCopper && UnfinishedAmmoItem.getCopperSheets(beltStack) >= UnfinishedAmmoItem.MAX_COPPER_SHEETS) return false;
+        if (isGunpowder && UnfinishedAmmoItem.hasGunpowder(beltStack)) return false;
+
+        if (isCopper || isGunpowder) return true;
 
         if (IAmmo.getIAmmoOrNull(handStack) != null) {
             return beltStack.getItem() instanceof IAmmoBox;

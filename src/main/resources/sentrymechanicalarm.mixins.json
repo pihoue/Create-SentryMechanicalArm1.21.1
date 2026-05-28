@@ -9,7 +9,9 @@
     "DeployerBlockEntityMixin",
     "DeployerHandlerMixin",
     "InteractKeyTextOverlayMixin",
+    "PressingRecipeMixin",
     "SawBlockEntityMixin",
+    "SequencedAssemblyRecipeMixin",
     "SpyglassZoomMixin"
   ],
   "client": [
