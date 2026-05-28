@@ -11,6 +11,7 @@ import com.tacz.guns.api.TimelessAPI;
 import com.tacz.guns.api.item.IAmmo;
 import com.tacz.guns.crafting.GunSmithTableIngredient;
 import com.tacz.guns.crafting.GunSmithTableRecipe;
+import euphy.upo.sentrymechanicalarm.SMAServerConfig;
 import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
 import euphy.upo.sentrymechanicalarm.registry.SentryRegistry;
 import net.minecraft.core.component.DataComponents;
@@ -47,6 +48,11 @@ public class DynamicRecipeManager {
                 ResourceLocation.fromNamespaceAndPath("tacz", "ammo"));
         if (taczAmmoItem == null) {
             SentryMechanicalArm.LOGGER.error("Failed to find TacZ ammo item, aborting recipe injection");
+            return;
+        }
+
+        if (!SMAServerConfig.ENABLE_DYNAMIC_RECIPES.get()) {
+            SentryMechanicalArm.LOGGER.info("Dynamic recipes disabled by config");
             return;
         }
 
@@ -184,10 +190,12 @@ public class DynamicRecipeManager {
     }
 
     private static AmmoRecipeConfig.Config getOrCreateConfig(ResourceLocation ammoId, RecipeManager recipeManager) {
-        GunSmithTableRecipe recipe = findTaCZRecipe(ammoId, recipeManager);
-        if (recipe != null) {
-            AmmoRecipeConfig.Config fromRecipe = buildConfigFromRecipe(ammoId, recipe);
-            if (fromRecipe != null) return fromRecipe;
+        if (SMAServerConfig.AUTO_MATCH_FROM_TACZ.get()) {
+            GunSmithTableRecipe recipe = findTaCZRecipe(ammoId, recipeManager);
+            if (recipe != null) {
+                AmmoRecipeConfig.Config fromRecipe = buildConfigFromRecipe(ammoId, recipe);
+                if (fromRecipe != null) return fromRecipe;
+            }
         }
 
         AmmoRecipeConfig.Config fromOverride = AmmoRecipeConfig.getOverride(ammoId);
@@ -221,8 +229,9 @@ public class DynamicRecipeManager {
 
     private static AmmoRecipeConfig.Config buildConfigFromRecipe(ResourceLocation ammoId, GunSmithTableRecipe recipe) {
         try {
-            List<Item> assemblySteps = new ArrayList<>();
+            record RawStep(Item item, int count) {}
 
+            List<RawStep> rawSteps = new ArrayList<>();
             for (GunSmithTableIngredient input : recipe.getInputs()) {
                 Ingredient ingredient = input.getIngredient();
                 int count = input.getCount();
@@ -233,9 +242,40 @@ public class DynamicRecipeManager {
                 if (rawItem == Items.AIR) continue;
 
                 Item mappedItem = mapToAssemblyItem(rawItem);
-                int steps = (count + 63) / 64;
-                for (int i = 0; i < steps; i++) {
-                    assemblySteps.add(mappedItem);
+                rawSteps.add(new RawStep(mappedItem, count));
+            }
+
+            int outputCount = recipe.getOutput().getCount();
+            if (outputCount <= 0) {
+                outputCount = AmmoRecipeConfig.getCategoryDefault(ammoId).outputCount();
+            }
+
+            SMAServerConfig.StepScaling mode = SMAServerConfig.STEP_SCALING.get();
+            if (mode == SMAServerConfig.StepScaling.GCD) {
+                int gcd = outputCount;
+                for (RawStep s : rawSteps) gcd = gcd(gcd, s.count());
+                if (gcd > 1) {
+                    for (int i = 0; i < rawSteps.size(); i++) {
+                        RawStep s = rawSteps.get(i);
+                        rawSteps.set(i, new RawStep(s.item(), s.count() / gcd));
+                    }
+                    outputCount /= gcd;
+                }
+            } else if (mode == SMAServerConfig.StepScaling.FIXED) {
+                int factor = SMAServerConfig.FIXED_SCALE_FACTOR.get();
+                if (factor > 1) {
+                    for (int i = 0; i < rawSteps.size(); i++) {
+                        RawStep s = rawSteps.get(i);
+                        rawSteps.set(i, new RawStep(s.item(), Math.max(1, s.count() / factor)));
+                    }
+                    outputCount = Math.max(1, outputCount / factor);
+                }
+            }
+
+            List<Item> assemblySteps = new ArrayList<>();
+            for (RawStep s : rawSteps) {
+                for (int i = 0; i < s.count(); i++) {
+                    assemblySteps.add(s.item());
                 }
             }
 
@@ -253,11 +293,6 @@ public class DynamicRecipeManager {
                 assemblySteps.add(Items.GUNPOWDER);
             }
 
-            int outputCount = recipe.getOutput().getCount();
-            if (outputCount <= 0) {
-                outputCount = AmmoRecipeConfig.getCategoryDefault(ammoId).outputCount();
-            }
-
             return new AmmoRecipeConfig.Config(
                     AmmoRecipeConfig.AmmoCategory.DEFAULT,
                     List.copyOf(assemblySteps),
@@ -267,6 +302,11 @@ public class DynamicRecipeManager {
             SentryMechanicalArm.LOGGER.debug("Failed to build config from recipe", e);
             return null;
         }
+    }
+
+    private static int gcd(int a, int b) {
+        while (b != 0) { int t = b; b = a % b; a = t; }
+        return Math.abs(a);
     }
 
     private static Item mapToAssemblyItem(Item rawItem) {
