@@ -1,24 +1,19 @@
 package euphy.upo.sentrymechanicalarm.client;
 
-import com.simibubi.create.foundation.item.ItemDescription;
 import com.simibubi.create.foundation.item.TooltipModifier;
+import com.simibubi.create.foundation.item.ItemDescription.Modifier;
 import euphy.upo.sentrymechanicalarm.registry.SentryRegistry;
-import net.createmod.catnip.lang.FontHelper;
+import net.createmod.catnip.lang.FontHelper.Palette;
 import net.minecraft.resources.ResourceLocation;
-
-import static euphy.upo.sentrymechanicalarm.SentryMechanicalArm.MODID;
+import net.minecraft.world.item.Item;
 
 public class SMATooltips {
+   public static void init() {
+      register(SentryRegistry.FIRE_CONTROL_CLIPBOARD.getId(), (Item)SentryRegistry.FIRE_CONTROL_CLIPBOARD.get());
+      register(SentryRegistry.SENTRY_SCOPE.getId(), (Item)SentryRegistry.SENTRY_SCOPE.get());
+   }
 
-    public static void init() {
-        register(SentryRegistry.FIRE_CONTROL_CLIPBOARD.getId(), SentryRegistry.FIRE_CONTROL_CLIPBOARD.get());
-        register(SentryRegistry.SENTRY_SCOPE.getId(), SentryRegistry.SENTRY_SCOPE.get());
-    }
-
-    private static void register(ResourceLocation id, net.minecraft.world.item.Item item) {
-        TooltipModifier.REGISTRY.register(
-                item,
-                new ItemDescription.Modifier(item, FontHelper.Palette.STANDARD_CREATE)
-        );
-    }
+   private static void register(ResourceLocation id, Item item) {
+      TooltipModifier.REGISTRY.register(item, new Modifier(item, Palette.STANDARD_CREATE));
+   }
 }

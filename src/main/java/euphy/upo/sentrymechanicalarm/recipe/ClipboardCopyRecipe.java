@@ -1,12 +1,10 @@
 package euphy.upo.sentrymechanicalarm.recipe;
 
 import euphy.upo.sentrymechanicalarm.content.FireControlClipboardItem;
-import euphy.upo.sentrymechanicalarm.util.ItemNBTHelper;
 import euphy.upo.sentrymechanicalarm.registry.SentryRecipeSerializers;
+import euphy.upo.sentrymechanicalarm.util.ItemNBTHelper;
+import net.minecraft.core.HolderLookup.Provider;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.CraftingInput;
@@ -15,75 +13,76 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.level.Level;
 
 public class ClipboardCopyRecipe extends CustomRecipe {
+   public ClipboardCopyRecipe(CraftingBookCategory category) {
+      super(category);
+   }
 
-    public ClipboardCopyRecipe(CraftingBookCategory category) {
-        super(category);
-    }
+   public boolean matches(CraftingInput input, Level level) {
+      ItemStack sourceStack = ItemStack.EMPTY;
+      ItemStack blankStack = ItemStack.EMPTY;
+      int clipboardCount = 0;
 
-    @Override
-    public boolean matches(CraftingInput input, Level level) {
-        ItemStack sourceStack = ItemStack.EMPTY;
-        ItemStack blankStack = ItemStack.EMPTY;
-        int clipboardCount = 0;
-
-        for (int i = 0; i < input.size(); ++i) {
-            ItemStack stack = input.getItem(i);
-            if (!stack.isEmpty()) {
-                if (!(stack.getItem() instanceof FireControlClipboardItem)) {
-                    return false;
-                }
-                clipboardCount++;
-
-                if (hasTargetData(stack)) {
-                    if (!sourceStack.isEmpty()) return false;
-                    sourceStack = stack;
-                } else {
-                    if (!blankStack.isEmpty()) return false;
-                    blankStack = stack;
-                }
+      for (int i = 0; i < input.size(); i++) {
+         ItemStack stack = input.getItem(i);
+         if (!stack.isEmpty()) {
+            if (!(stack.getItem() instanceof FireControlClipboardItem)) {
+               return false;
             }
-        }
 
-        return clipboardCount == 2 && !sourceStack.isEmpty() && !blankStack.isEmpty();
-    }
+            clipboardCount++;
+            if (this.hasTargetData(stack)) {
+               if (!sourceStack.isEmpty()) {
+                  return false;
+               }
 
-    @Override
-    public ItemStack assemble(CraftingInput input, HolderLookup.Provider registries) {
-        ItemStack sourceStack = ItemStack.EMPTY;
+               sourceStack = stack;
+            } else {
+               if (!blankStack.isEmpty()) {
+                  return false;
+               }
 
-
-        for (int i = 0; i < input.size(); ++i) {
-            ItemStack stack = input.getItem(i);
-            if (!stack.isEmpty() && hasTargetData(stack)) {
-                sourceStack = stack;
-                break;
+               blankStack = stack;
             }
-        }
+         }
+      }
 
-        if (sourceStack.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-        ItemStack result = sourceStack.copy();
+      return clipboardCount == 2 && !sourceStack.isEmpty() && !blankStack.isEmpty();
+   }
 
-        result.setCount(2);
+   public ItemStack assemble(CraftingInput input, Provider registries) {
+      ItemStack sourceStack = ItemStack.EMPTY;
 
-        return result;
-    }
+      for (int i = 0; i < input.size(); i++) {
+         ItemStack stack = input.getItem(i);
+         if (!stack.isEmpty() && this.hasTargetData(stack)) {
+            sourceStack = stack;
+            break;
+         }
+      }
 
-    @Override
-    public boolean canCraftInDimensions(int width, int height) {
-        return width * height >= 2;
-    }
+      if (sourceStack.isEmpty()) {
+         return ItemStack.EMPTY;
+      } else {
+         ItemStack result = sourceStack.copy();
+         result.setCount(2);
+         return result;
+      }
+   }
 
-    @Override
-    public RecipeSerializer<?> getSerializer() {
-        return SentryRecipeSerializers.CLIPBOARD_COPY.get();
-    }
+   public boolean canCraftInDimensions(int width, int height) {
+      return width * height >= 2;
+   }
 
+   public RecipeSerializer<?> getSerializer() {
+      return (RecipeSerializer<?>)SentryRecipeSerializers.CLIPBOARD_COPY.get();
+   }
 
-    private boolean hasTargetData(ItemStack stack) {
-        if (!ItemNBTHelper.hasTag(stack)) return false;
-        CompoundTag tag = ItemNBTHelper.getTag(stack);
-        return tag.contains("TargetList", Tag.TAG_LIST) && !tag.getList("TargetList", Tag.TAG_STRING).isEmpty();
-    }
+   private boolean hasTargetData(ItemStack stack) {
+      if (!ItemNBTHelper.hasTag(stack)) {
+         return false;
+      } else {
+         CompoundTag tag = ItemNBTHelper.getTag(stack);
+         return tag.contains("TargetList", 9) && !tag.getList("TargetList", 8).isEmpty();
+      }
+   }
 }

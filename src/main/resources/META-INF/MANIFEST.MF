@@ -1,0 +1,8 @@
+Manifest-Version: 1.0
+Specification-Title: Sentry Mechanical Arm
+Specification-Vendor: Euphy
+Specification-Version: 1
+Implementation-Title: Create-SentryMechanicalArm-1.21.1-neoforge
+Implementation-Version: 1.3.6
+Implementation-Vendor: Euphy
+

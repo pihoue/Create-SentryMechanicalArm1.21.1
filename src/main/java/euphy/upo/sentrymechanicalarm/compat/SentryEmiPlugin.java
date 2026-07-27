@@ -7,8 +7,6 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 @OnlyIn(Dist.CLIENT)
 public class SentryEmiPlugin implements EmiPlugin {
-
-    @Override
-    public void register(EmiRegistry registry) {
-    }
+   public void register(EmiRegistry registry) {
+   }
 }

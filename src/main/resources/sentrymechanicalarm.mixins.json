@@ -14,7 +14,8 @@
     "PressingRecipeMixin",
     "SawBlockEntityMixin",
     "SequencedAssemblyRecipeMixin",
-    "SpyglassZoomMixin"
+    "SpyglassZoomMixin",
+    "TaczEntityUtilMixin"
   ],
   "client": [
     "GunDisplayInstanceAccessor",

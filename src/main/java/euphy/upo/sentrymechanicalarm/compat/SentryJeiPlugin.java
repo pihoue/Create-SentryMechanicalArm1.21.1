@@ -1,6 +1,5 @@
 package euphy.upo.sentrymechanicalarm.compat;
 
-import euphy.upo.sentrymechanicalarm.SentryMechanicalArm;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.registration.IRecipeRegistration;
@@ -11,16 +10,12 @@ import net.neoforged.api.distmarker.OnlyIn;
 @OnlyIn(Dist.CLIENT)
 @JeiPlugin
 public class SentryJeiPlugin implements IModPlugin {
+   private static final ResourceLocation PLUGIN_ID = ResourceLocation.fromNamespaceAndPath("sentrymechanicalarm", "jei_plugin");
 
-    private static final ResourceLocation PLUGIN_ID =
-            ResourceLocation.fromNamespaceAndPath(SentryMechanicalArm.MODID, "jei_plugin");
+   public ResourceLocation getPluginUid() {
+      return PLUGIN_ID;
+   }
 
-    @Override
-    public ResourceLocation getPluginUid() {
-        return PLUGIN_ID;
-    }
-
-    @Override
-    public void registerRecipes(IRecipeRegistration registration) {
-    }
+   public void registerRecipes(IRecipeRegistration registration) {
+   }
 }

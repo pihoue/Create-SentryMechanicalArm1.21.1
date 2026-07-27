@@ -7,14 +7,17 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(Player.class)
+@Mixin({Player.class})
 public class SpyglassZoomMixin {
-
-    @Inject(method = "isScoping", at = @At("HEAD"), cancellable = true)
-    private void sentrymechanicalarm$isScoping(CallbackInfoReturnable<Boolean> cir) {
-        Player self = (Player) (Object) this;
-        if (self.isUsingItem() && self.getUseItem().getUseAnimation() == UseAnim.SPYGLASS) {
-            cir.setReturnValue(true);
-        }
-    }
+   @Inject(
+      method = {"isScoping"},
+      at = {@At("HEAD")},
+      cancellable = true
+   )
+   private void sentrymechanicalarm$isScoping(CallbackInfoReturnable<Boolean> cir) {
+      Player self = (Player)(Object)this;
+      if (self.isUsingItem() && self.getUseItem().getUseAnimation() == UseAnim.SPYGLASS) {
+         cir.setReturnValue(true);
+      }
+   }
 }
