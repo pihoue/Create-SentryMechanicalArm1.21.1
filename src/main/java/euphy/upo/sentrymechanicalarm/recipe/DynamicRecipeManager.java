@@ -27,14 +27,12 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.component.CustomData;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.crafting.DataComponentIngredient;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.*;
 
 @EventBusSubscriber(modid = SentryMechanicalArm.MODID)
 public class DynamicRecipeManager {
@@ -133,14 +131,8 @@ public class DynamicRecipeManager {
                     .addOutput(outputAmmo, 1)
                     .loops(1);
 
-            for (Item stepItem : config.assemblySteps()) {
-                if (stepItem == Items.GUNPOWDER) {
-                    builder.addStep(DeployerApplicationRecipe::new,
-                            rb -> rb.require(Items.GUNPOWDER));
-                } else {
-                    builder.addStep(DeployerApplicationRecipe::new,
-                            rb -> rb.require(stepItem));
-                }
+            for (Ingredient stepItem : config.assemblySteps()) {
+                builder.addStep(DeployerApplicationRecipe::new, rb -> rb.require(stepItem));
             }
 
             builder.addStep(PressingRecipe::new, rb -> rb);
@@ -167,7 +159,8 @@ public class DynamicRecipeManager {
             CompoundTag inputTag = new CompoundTag();
             inputTag.putString("AmmoId", ammoId.toString());
             long materialSteps = config.assemblySteps().stream()
-                    .filter(item -> item != Items.GUNPOWDER)
+                    .map(Ingredient::getItems)
+                    .filter(items -> items.length > 0 && items[0].getItem() != Items.GUNPOWDER)
                     .count();
             inputTag.putInt("CopperSheets", (int) materialSteps);
             inputTag.putBoolean("GunpowderAdded", true);
@@ -228,7 +221,11 @@ public class DynamicRecipeManager {
         return null;
     }
 
-    private record RawStep(Item item, int count) {}
+    private record RawStep(ItemStack item, int count) {
+        public RawStep(Item item, int count){
+            this(new ItemStack(item), count);
+        }
+    }
 
     private static AmmoRecipeConfig.Config buildConfigFromRecipe(ResourceLocation ammoId, GunSmithTableRecipe recipe) {
         try {
@@ -239,11 +236,16 @@ public class DynamicRecipeManager {
                 ItemStack[] items = ingredient.getItems();
                 if (items.length == 0) continue;
 
-                Item rawItem = items[0].getItem();
-                if (rawItem == Items.AIR) continue;
+                ItemStack rawItem = items[0];
+                if (rawItem.getItem() == Items.AIR) continue;
 
-                Item mappedItem = mapToAssemblyItem(rawItem);
-                rawSteps.add(new RawStep(mappedItem, count));
+                Item mappedItem = mapToAssemblyItem(rawItem.getItem());
+                if(mappedItem != rawItem.getItem()){
+                    // block data components to avoid being unable to craft
+                    rawSteps.add(new RawStep(mappedItem, count));
+                }else{
+                    rawSteps.add(new RawStep(rawItem, count));
+                }
             }
 
             int outputCount = recipe.getOutput().getCount();
@@ -278,16 +280,16 @@ public class DynamicRecipeManager {
             rawSteps = scaled.steps();
             outputCount = scaled.outputCount();
 
-            List<Item> assemblySteps = new ArrayList<>();
+            List<ItemStack> assemblySteps = new ArrayList<>();
             for (RawStep s : rawSteps) {
                 for (int i = 0; i < s.count(); i++) {
                     assemblySteps.add(s.item());
                 }
             }
 
-            List<Item> gunpowderSteps = new ArrayList<>();
+            List<ItemStack> gunpowderSteps = new ArrayList<>();
             assemblySteps.removeIf(item -> {
-                if (item == Items.GUNPOWDER || item == Items.TNT) {
+                if (item.getItem() == Items.GUNPOWDER || item.getItem() == Items.TNT) {
                     gunpowderSteps.add(item);
                     return true;
                 }
@@ -295,13 +297,13 @@ public class DynamicRecipeManager {
             });
             assemblySteps.addAll(gunpowderSteps);
 
-            if (assemblySteps.stream().noneMatch(item -> item == Items.GUNPOWDER || item == Items.TNT)) {
-                assemblySteps.add(Items.GUNPOWDER);
-            }
-
             return new AmmoRecipeConfig.Config(
                     AmmoRecipeConfig.AmmoCategory.DEFAULT,
-                    List.copyOf(assemblySteps),
+                    assemblySteps.stream().map(
+                            item -> item.getComponents().isEmpty()
+                                    ? Ingredient.of(item) // Optimize Matching
+                                    : DataComponentIngredient.of(false, item)
+                    ).toList(),
                     outputCount
             );
         } catch (Exception e) {
@@ -315,15 +317,50 @@ public class DynamicRecipeManager {
         return Math.abs(a);
     }
 
+    private record TargetBlock(Item blockitem, int consumption) {}
+
+    private static class ReplaceRulesHolder { // lazy load to avoid NullPointerException happened in Initialize Phase
+        private static final Map<Item, TargetBlock> optimizeRules = Map.ofEntries(
+                Map.entry(Items.GUNPOWDER, new TargetBlock(Items.TNT, 4)),
+                Map.entry(Items.GLOWSTONE_DUST, new TargetBlock(Items.GLOWSTONE, 4)),
+                Map.entry(Items.SNOWBALL, new TargetBlock(Items.SNOW_BLOCK, 4)),
+                Map.entry(Items.CLAY_BALL, new TargetBlock(Items.CLAY, 4)),
+                Map.entry(Items.BRICK, new TargetBlock(Items.BRICKS, 4)),
+                Map.entry(Items.NETHER_BRICK, new TargetBlock(Items.NETHER_BRICKS, 4)),
+                Map.entry(Items.AMETHYST_SHARD, new TargetBlock(Items.AMETHYST_BLOCK, 4)),
+                Map.entry(Items.QUARTZ, new TargetBlock(Items.QUARTZ_BLOCK, 4)),
+                Map.entry(Items.HONEYCOMB, new TargetBlock(Items.HONEY_BLOCK, 4)),
+                Map.entry(Items.BONE_MEAL, new TargetBlock(Items.BONE_BLOCK, 9)),
+                Map.entry(Items.LAPIS_LAZULI, new TargetBlock(Items.LAPIS_BLOCK, 9)),
+                Map.entry(Items.REDSTONE, new TargetBlock(Items.REDSTONE_BLOCK, 9)),
+                Map.entry(Items.DIAMOND, new TargetBlock(Items.DIAMOND_BLOCK, 9)),
+                Map.entry(Items.EMERALD, new TargetBlock(Items.EMERALD_BLOCK, 9)),
+                Map.entry(Items.COPPER_INGOT, new TargetBlock(Items.COPPER_BLOCK, 9)),
+                Map.entry(Items.IRON_INGOT, new TargetBlock(Items.IRON_BLOCK, 9)),
+                Map.entry(Items.GOLD_INGOT, new TargetBlock(Items.GOLD_BLOCK, 9)),
+                Map.entry(AllItems.COPPER_SHEET.get(), new TargetBlock(Items.COPPER_BLOCK, 9)),
+                Map.entry(AllItems.IRON_SHEET.get(), new TargetBlock(Items.IRON_BLOCK, 9)),
+                Map.entry(AllItems.GOLDEN_SHEET.get(), new TargetBlock(Items.GOLD_BLOCK, 9))
+        );
+        public static Map<Item, TargetBlock> getOptimizeRulesLazy(){
+            return optimizeRules;
+        }
+        private static final Map<Item, Item> asmMappingRules = Map.of(
+                Items.COPPER_INGOT,AllItems.COPPER_SHEET.get(),
+                Items.IRON_INGOT,AllItems.IRON_SHEET.get(),
+                Items.GOLD_INGOT,AllItems.GOLDEN_SHEET.get(),
+                AllItems.COPPER_SHEET.get(),AllItems.COPPER_SHEET.get(),
+                AllItems.IRON_SHEET.get(),AllItems.IRON_SHEET.get(),
+                AllItems.GOLDEN_SHEET.get(),AllItems.GOLDEN_SHEET.get()
+        );
+        public static Map<Item, Item> getAsmMappingRulesLazy(){
+            return asmMappingRules;
+        }
+    }
+
     private static Item mapToAssemblyItem(Item rawItem) {
-        if (rawItem == Items.COPPER_INGOT) return AllItems.COPPER_SHEET.get();
-        if (rawItem == Items.IRON_INGOT) return AllItems.IRON_SHEET.get();
-        if (rawItem == Items.GOLD_INGOT) return AllItems.GOLDEN_SHEET.get();
-        if (rawItem == Items.GUNPOWDER) return Items.GUNPOWDER;
-        if (rawItem == AllItems.COPPER_SHEET.get()) return AllItems.COPPER_SHEET.get();
-        if (rawItem == AllItems.IRON_SHEET.get()) return AllItems.IRON_SHEET.get();
-        if (rawItem == AllItems.GOLDEN_SHEET.get()) return AllItems.GOLDEN_SHEET.get();
-        return rawItem;
+        Item result = ReplaceRulesHolder.getAsmMappingRulesLazy().get(rawItem);
+        return result!=null?result:rawItem;
     }
 
     private record ScaledResult(List<RawStep> steps, int outputCount) {}
@@ -332,7 +369,7 @@ public class DynamicRecipeManager {
         int totalSteps = 0;
         for (RawStep s : rawSteps) totalSteps += s.count();
         boolean hasGunpowder = rawSteps.stream().anyMatch(s ->
-            s.item() == Items.GUNPOWDER || s.item() == Items.TNT);
+            s.item().getItem() == Items.GUNPOWDER || s.item().getItem() == Items.TNT);
         if (!hasGunpowder) totalSteps++;
 
         if (totalSteps <= maxSteps) return new ScaledResult(rawSteps, outputCount);
@@ -350,172 +387,15 @@ public class DynamicRecipeManager {
     private static List<RawStep> optimizeToBlocks(List<RawStep> rawSteps) {
         List<RawStep> result = new ArrayList<>();
         for (RawStep step : rawSteps) {
-            Item item = step.item();
+            TargetBlock target = ReplaceRulesHolder.getOptimizeRulesLazy().get(step.item().getItem());
             int count = step.count();
-
-            if (item == Items.GUNPOWDER) {
-                if (count >= 4) {
-                    result.add(new RawStep(Items.TNT, count / 4));
-                    int remainder = count % 4;
-                    if (remainder > 0) result.add(new RawStep(Items.GUNPOWDER, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.GLOWSTONE_DUST) {
-                if (count >= 4) {
-                    result.add(new RawStep(Items.GLOWSTONE, count / 4));
-                    int remainder = count % 4;
-                    if (remainder > 0) result.add(new RawStep(Items.GLOWSTONE_DUST, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.SNOWBALL) {
-                if (count >= 4) {
-                    result.add(new RawStep(Items.SNOW_BLOCK, count / 4));
-                    int remainder = count % 4;
-                    if (remainder > 0) result.add(new RawStep(Items.SNOWBALL, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.CLAY_BALL) {
-                if (count >= 4) {
-                    result.add(new RawStep(Items.CLAY, count / 4));
-                    int remainder = count % 4;
-                    if (remainder > 0) result.add(new RawStep(Items.CLAY_BALL, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.BRICK) {
-                if (count >= 4) {
-                    result.add(new RawStep(Items.BRICKS, count / 4));
-                    int remainder = count % 4;
-                    if (remainder > 0) result.add(new RawStep(Items.BRICK, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.NETHER_BRICK) {
-                if (count >= 4) {
-                    result.add(new RawStep(Items.NETHER_BRICKS, count / 4));
-                    int remainder = count % 4;
-                    if (remainder > 0) result.add(new RawStep(Items.NETHER_BRICK, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.AMETHYST_SHARD) {
-                if (count >= 4) {
-                    result.add(new RawStep(Items.AMETHYST_BLOCK, count / 4));
-                    int remainder = count % 4;
-                    if (remainder > 0) result.add(new RawStep(Items.AMETHYST_SHARD, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.QUARTZ) {
-                if (count >= 4) {
-                    result.add(new RawStep(Items.QUARTZ_BLOCK, count / 4));
-                    int remainder = count % 4;
-                    if (remainder > 0) result.add(new RawStep(Items.QUARTZ, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.HONEYCOMB) {
-                if (count >= 4) {
-                    result.add(new RawStep(Items.HONEYCOMB_BLOCK, count / 4));
-                    int remainder = count % 4;
-                    if (remainder > 0) result.add(new RawStep(Items.HONEYCOMB, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.BONE_MEAL) {
-                if (count >= 9) {
-                    result.add(new RawStep(Items.BONE_BLOCK, count / 9));
-                    int remainder = count % 9;
-                    if (remainder > 0) result.add(new RawStep(Items.BONE_MEAL, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.LAPIS_LAZULI) {
-                if (count >= 9) {
-                    result.add(new RawStep(Items.LAPIS_BLOCK, count / 9));
-                    int remainder = count % 9;
-                    if (remainder > 0) result.add(new RawStep(Items.LAPIS_LAZULI, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.REDSTONE) {
-                if (count >= 9) {
-                    result.add(new RawStep(Items.REDSTONE_BLOCK, count / 9));
-                    int remainder = count % 9;
-                    if (remainder > 0) result.add(new RawStep(Items.REDSTONE, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.DIAMOND) {
-                if (count >= 9) {
-                    result.add(new RawStep(Items.DIAMOND_BLOCK, count / 9));
-                    int remainder = count % 9;
-                    if (remainder > 0) result.add(new RawStep(Items.DIAMOND, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.EMERALD) {
-                if (count >= 9) {
-                    result.add(new RawStep(Items.EMERALD_BLOCK, count / 9));
-                    int remainder = count % 9;
-                    if (remainder > 0) result.add(new RawStep(Items.EMERALD, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.COPPER_INGOT) {
-                if (count >= 9) {
-                    result.add(new RawStep(Items.COPPER_BLOCK, count / 9));
-                    int remainder = count % 9;
-                    if (remainder > 0) result.add(new RawStep(Items.COPPER_INGOT, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.IRON_INGOT) {
-                if (count >= 9) {
-                    result.add(new RawStep(Items.IRON_BLOCK, count / 9));
-                    int remainder = count % 9;
-                    if (remainder > 0) result.add(new RawStep(Items.IRON_INGOT, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == Items.GOLD_INGOT) {
-                if (count >= 9) {
-                    result.add(new RawStep(Items.GOLD_BLOCK, count / 9));
-                    int remainder = count % 9;
-                    if (remainder > 0) result.add(new RawStep(Items.GOLD_INGOT, remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == AllItems.COPPER_SHEET.get()) {
-                if (count >= 9) {
-                    result.add(new RawStep(Items.COPPER_BLOCK, count / 9));
-                    int remainder = count % 9;
-                    if (remainder > 0) result.add(new RawStep(AllItems.COPPER_SHEET.get(), remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == AllItems.IRON_SHEET.get()) {
-                if (count >= 9) {
-                    result.add(new RawStep(Items.IRON_BLOCK, count / 9));
-                    int remainder = count % 9;
-                    if (remainder > 0) result.add(new RawStep(AllItems.IRON_SHEET.get(), remainder));
-                } else {
-                    result.add(step);
-                }
-            } else if (item == AllItems.GOLDEN_SHEET.get()) {
-                if (count >= 9) {
-                    result.add(new RawStep(Items.GOLD_BLOCK, count / 9));
-                    int remainder = count % 9;
-                    if (remainder > 0) result.add(new RawStep(AllItems.GOLDEN_SHEET.get(), remainder));
-                } else {
-                    result.add(step);
-                }
-            } else {
-                result.add(step);
+            int remainder = count;
+            if(target != null && count>=target.consumption){
+                remainder = count % target.consumption;
+                // block data components to avoid being unable to craft
+                result.add(new RawStep(target.blockitem, count / target.consumption));
             }
+            if (remainder > 0) result.add(remainder==count?step:new RawStep(step.item(), remainder));
         }
         return result;
     }

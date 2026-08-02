@@ -4,9 +4,11 @@ import com.simibubi.create.AllItems;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.Ingredient;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 public class AmmoRecipeConfig {
 
@@ -20,7 +22,7 @@ public class AmmoRecipeConfig {
 
     public record Config(
             AmmoCategory category,
-            List<Item> assemblySteps,
+            List<Ingredient> assemblySteps,
             int outputCount
     ) {}
 
@@ -28,20 +30,20 @@ public class AmmoRecipeConfig {
     private static final List<Item> IR = List.of(AllItems.IRON_SHEET.get());
     private static final List<Item> GP = List.of(Items.GUNPOWDER);
 
-    private static List<Item> steps(int repeat, List<Item> base) {
+    private static List<Ingredient> steps(int repeat, List<Item> base) {
         var result = new java.util.ArrayList<Item>();
         for (int i = 0; i < repeat; i++) result.addAll(base);
         result.addAll(GP);
-        return List.copyOf(result);
+        return result.stream().map(Ingredient::of).toList();
     }
 
-    private static List<Item> heavySteps(List<Item> extra) {
+    private static List<Ingredient> heavySteps(List<Item> extra) {
         var result = new java.util.ArrayList<Item>();
         result.add(Items.COPPER_BLOCK);
         result.add(AllItems.IRON_SHEET.get());
         result.addAll(extra);
         result.add(Items.GUNPOWDER);
-        return List.copyOf(result);
+        return result.stream().map(Ingredient::of).toList();
     }
 
     public static final Config DFLT_PISTOL = new Config(AmmoCategory.PISTOL, steps(2, CP), 20);
@@ -49,7 +51,7 @@ public class AmmoRecipeConfig {
     public static final Config DFLT_HEAVY = new Config(AmmoCategory.HEAVY,
             heavySteps(List.of(Items.TNT, Items.BLAZE_POWDER)), 8);
     public static final Config DFLT_SHOTGUN = new Config(AmmoCategory.SHOTGUN,
-            List.of(AllItems.COPPER_SHEET.get(), AllItems.COPPER_SHEET.get(), Items.PAPER, Items.GUNPOWDER), 12);
+            Stream.of(AllItems.COPPER_SHEET.get(), AllItems.COPPER_SHEET.get(), Items.PAPER, Items.GUNPOWDER).map(Ingredient::of).toList(), 12);
     public static final Config DFLT_DEFAULT = new Config(AmmoCategory.DEFAULT, steps(2, CP), 10);
 
     private static final Map<String, Config> OVERRIDES = Map.ofEntries(
@@ -86,7 +88,7 @@ public class AmmoRecipeConfig {
             Map.entry("rpg", new Config(AmmoCategory.HEAVY,
                     heavySteps(List.of(Items.TNT, Items.TNT, Items.BLAZE_POWDER, Items.MAGMA_CREAM)), 1)),
             Map.entry("magnum", new Config(AmmoCategory.HEAVY,
-                    List.of(AllItems.IRON_SHEET.get(), AllItems.IRON_SHEET.get(), Items.TNT, Items.GUNPOWDER), 8))
+                    Stream.of(AllItems.IRON_SHEET.get(), AllItems.IRON_SHEET.get(), Items.TNT, Items.GUNPOWDER).map(Ingredient::of).toList(), 8))
     );
 
     public static Config getOverride(ResourceLocation ammoId) {
