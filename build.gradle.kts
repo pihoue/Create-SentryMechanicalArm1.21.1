@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "euphy.upo.sentrymechanicalarm"
-version = "1.3.6"
+version = (findProperty("mod_version") as String?) ?: "1.3.7"
 
 base {
     archivesName = "sentrymechanicalarm-neoforge-1.21.1"
@@ -131,5 +131,13 @@ tasks.named<Jar>("jar") {
         attributes["Implementation-Title"] = project.name
         attributes["Implementation-Version"] = project.version
         attributes["Implementation-Vendor"] = "Euphy"
+    }
+}
+
+tasks.named<ProcessResources>("processResources") {
+    val modVersion = project.version.toString()
+    inputs.property("mod_version", modVersion)
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand("mod_version" to modVersion)
     }
 }

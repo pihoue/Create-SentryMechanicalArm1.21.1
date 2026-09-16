@@ -67,16 +67,68 @@ public class DynamicRecipeManager {
         verifyRecipes(recipeManager);
     }
 
+    /**
+     * Build a collision-free, stable internal id for an ammo entry.
+     * <p>
+     * Ammo ids are ResourceLocations, i.e. (namespace, path) pairs with unique
+     * semantics. The old code flattened both separators "_" and "/" into a single
+     * "_" ( {@code namespace + "_" + path.replace("/", "_")} ), which is NOT an
+     * injective mapping: two different ids such as {@code a:b/c} and {@code a_b:c}
+     * both collapsed to "a_b_c". Gun packs that name their ammo after the caliber
+     * only (e.g. "9mm", "5.56x45") could therefore produce identical recipe ids,
+     * which blows up with a duplicate-recipe error when the world is loaded.
+     * <p>
+     * This encoder escapes "_" first and then maps "/" to "_", which IS injective,
+     * so every distinct ammo id always yields a distinct recipe path.
+     */
+    /**
+     * Builds a recipe id that is guaranteed to be unique.
+     * <p>
+     * Two different ammo entries can legitimately map to the same readable path
+     * (gun packs that name their ammo after the caliber only may end up with an
+     * identical namespace/path combination). Those entries are <b>different
+     * ammo</b>, so every one of them must keep its own recipe &mdash; we never
+     * drop any of them. The colliding id simply gets a numeric discriminator
+     * appended, which keeps all recipes alive and stops the recipe manager from
+     * throwing a duplicate-recipe error while loading the world.
+     */
+    private static ResourceLocation uniqueRecipeId(String category, String safePath,
+                                                   Set<ResourceLocation> used, int index) {
+        String base = category + "/" + safePath;
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(SentryMechanicalArm.MODID, base);
+        int attempt = 0;
+        while (!used.add(id)) {
+            attempt++;
+            String suffix = attempt == 1 ? Integer.toString(index) : index + "_" + attempt;
+            id = ResourceLocation.fromNamespaceAndPath(SentryMechanicalArm.MODID, base + "/" + suffix);
+            SentryMechanicalArm.LOGGER.warn(
+                    "DynamicRecipeManager: ammo recipe path collision on {}, keeping entry as {}",
+                    base, id);
+        }
+        return id;
+    }
+
+    private static String encodeIdPart(String part) {
+        return part.replace("_", "__").replace("/", "_");
+    }
+
+    private static String uniquePath(ResourceLocation ammoId) {
+        // namespace and path are kept as separate, escaped segments => always unique
+        return encodeIdPart(ammoId.getNamespace()) + "_" + encodeIdPart(ammoId.getPath());
+    }
+
     public static List<RecipeHolder<?>> injectCuttingRecipes(RecipeManager recipeManager) {
         var ammoEntries = TimelessAPI.getAllCommonAmmoIndex();
         if (ammoEntries.isEmpty()) return List.of();
 
         List<RecipeHolder<?>> newRecipes = new ArrayList<>();
+        Set<ResourceLocation> usedRecipeIds = new LinkedHashSet<>();
+        int recipeIndex = 0;
         for (var entry : ammoEntries) {
             ResourceLocation ammoId = entry.getKey();
-            String safePath = ammoId.getNamespace() + "_" + ammoId.getPath().replace("/", "_");
-            ResourceLocation recipeId = ResourceLocation.fromNamespaceAndPath(
-                    SentryMechanicalArm.MODID, "ammo_cutting/" + safePath);
+            String safePath = uniquePath(ammoId);
+            ResourceLocation recipeId = uniqueRecipeId(
+                    "ammo_cutting", safePath, usedRecipeIds, recipeIndex++);
 
             ItemStack output = new ItemStack(SentryRegistry.UNFINISHED_AMMO.get());
             CompoundTag tag = new CompoundTag();
@@ -107,12 +159,14 @@ public class DynamicRecipeManager {
         SentryMechanicalArm.LOGGER.info("Building {} sequenced assembly recipes", ammoEntries.size());
 
         List<RecipeHolder<?>> newRecipes = new ArrayList<>();
+        Set<ResourceLocation> usedRecipeIds = new LinkedHashSet<>();
+        int recipeIndex = 0;
         for (var entry : ammoEntries) {
             ResourceLocation ammoId = entry.getKey();
             AmmoRecipeConfig.Config config = getOrCreateConfig(ammoId, recipeManager);
-            String safePath = ammoId.getNamespace() + "_" + ammoId.getPath().replace("/", "_");
-            ResourceLocation recipeId = ResourceLocation.fromNamespaceAndPath(
-                    SentryMechanicalArm.MODID, "ammo_assembly/" + safePath);
+            String safePath = uniquePath(ammoId);
+            ResourceLocation recipeId = uniqueRecipeId(
+                    "ammo_assembly", safePath, usedRecipeIds, recipeIndex++);
 
             ItemStack inputUnfinished = new ItemStack(SentryRegistry.UNFINISHED_AMMO.get());
             CompoundTag inputTag = new CompoundTag();
@@ -148,12 +202,14 @@ public class DynamicRecipeManager {
         if (ammoEntries.isEmpty()) return List.of();
 
         List<RecipeHolder<?>> newRecipes = new ArrayList<>();
+        Set<ResourceLocation> usedRecipeIds = new LinkedHashSet<>();
+        int recipeIndex = 0;
         for (var entry : ammoEntries) {
             ResourceLocation ammoId = entry.getKey();
             AmmoRecipeConfig.Config config = getOrCreateConfig(ammoId, recipeManager);
-            String safePath = ammoId.getNamespace() + "_" + ammoId.getPath().replace("/", "_");
-            ResourceLocation pressRecipeId = ResourceLocation.fromNamespaceAndPath(
-                    SentryMechanicalArm.MODID, "ammo_pressing/" + safePath);
+            String safePath = uniquePath(ammoId);
+            ResourceLocation pressRecipeId = uniqueRecipeId(
+                    "ammo_pressing", safePath, usedRecipeIds, recipeIndex++);
 
             ItemStack inputComplete = new ItemStack(SentryRegistry.UNFINISHED_AMMO.get());
             CompoundTag inputTag = new CompoundTag();
@@ -412,8 +468,26 @@ public class DynamicRecipeManager {
             for (RecipeHolder<?> holder : byType.values()) {
                 deduped.put(holder.id(), holder);
             }
+            Set<ResourceLocation> injectedIds = new LinkedHashSet<>();
+            int renamed = 0;
             for (RecipeHolder<?> holder : newRecipes) {
-                deduped.put(holder.id(), holder);
+                ResourceLocation id = holder.id();
+                if (!injectedIds.add(id)) {
+                    // Never drop a recipe: give the duplicate a unique id instead.
+                    ResourceLocation unique;
+                    do {
+                        renamed++;
+                        unique = ResourceLocation.fromNamespaceAndPath(
+                                SentryMechanicalArm.MODID,
+                                id.getPath() + "/entry_" + renamed);
+                    } while (!injectedIds.add(unique));
+                    SentryMechanicalArm.LOGGER.warn(
+                            "DynamicRecipeManager: recipe id {} already present, kept as {}",
+                            id, unique);
+                    holder = new RecipeHolder<>(unique, holder.value());
+                    id = unique;
+                }
+                deduped.put(id, holder);
             }
             Collection<RecipeHolder<?>> allRecipes = deduped.values();
             recipeManager.replaceRecipes(allRecipes);
